@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-cde
+resources:
+  - ../../base
+images:
+  - name: hub.kapowai.com.ua/diia-mock
+    newTag: "25.09.5-accord"
+configMapGenerator:
+  - name: diia-adapter-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+      - RETURN_LINK=https://online.finpay.com.ua/diia
+      - DEFAULT_RETURN_DOMAIN=https://online.finpay.com.ua
+      - WEBHOOK_DOMAIN=https://diia-p.finpay.com.ua
+      - SIGN_RETURN_LINK=https://online.finpay.com.ua/diia-sign
+patches:
+  - target:
+      kind: Ingress
+      name: diia-adapter
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: diia-p.finpay.com.ua

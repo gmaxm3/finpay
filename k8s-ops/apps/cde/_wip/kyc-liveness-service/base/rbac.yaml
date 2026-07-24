@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyc-liveness-service
+  labels:
+    app.kubernetes.io/name: kyc-liveness-service
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+automountServiceAccountToken: false

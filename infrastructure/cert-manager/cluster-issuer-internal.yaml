@@ -1,0 +1,15 @@
+---
+# ClusterIssuer для internal CA — для CDE та внутрішніх сервісів
+# PCI-DSS: внутрішні сервіси використовують власний CA, не публічний
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: internal-ca
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  ca:
+    # Secret з internal CA certificate та key
+    # Створюється окремо: kubectl create secret tls internal-ca-secret ...
+    # SECRET_MANAGER: зберігати CA key через secret management
+    secretName: internal-ca-secret

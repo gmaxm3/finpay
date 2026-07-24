@@ -1,0 +1,146 @@
+---
+# Kargo RBAC — хто може approve promotions
+#
+# Kargo використовує K8s RBAC для управління правами promotion.
+# Групи мають відповідати OIDC groups з вашого SSO провайдера.
+#
+# Застосувати: kubectl apply -f k8s-ops/kargo/rbac.yaml
+
+# =============================================================================
+# dev-team: може approve promotion тільки в dev та test
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kargo-dev-promoter
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+rules:
+  - apiGroups: [kargo.akuity.io]
+    resources: [promotions]
+    verbs: [create, get, list, watch]
+  - apiGroups: [kargo.akuity.io]
+    resources: [stages]
+    verbs: [get, list, watch]
+  - apiGroups: [kargo.akuity.io]
+    resources: [freights]
+    verbs: [get, list, watch]
+    # dev-team НЕ може approve stage та prod
+
+---
+# release-managers: можуть approve promotion в stage
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kargo-release-manager
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+rules:
+  - apiGroups: [kargo.akuity.io]
+    resources: [promotions]
+    verbs: [create, get, list, watch, update]
+  - apiGroups: [kargo.akuity.io]
+    resources: [stages, freights, warehouses]
+    verbs: [get, list, watch]
+  - apiGroups: [kargo.akuity.io]
+    resources: [freights]
+    # approve = update status.approvedFor
+    verbs: [get, list, watch, update, patch]
+
+---
+# prod-operators: можуть approve promotion в prod
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kargo-prod-operator
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+rules:
+  - apiGroups: [kargo.akuity.io]
+    resources: [promotions, stages, freights, warehouses, projects]
+    verbs: [get, list, watch, create, update, patch]
+
+---
+# Kargo viewer — читання для всіх
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kargo-viewer
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+rules:
+  - apiGroups: [kargo.akuity.io]
+    resources: [promotions, stages, freights, warehouses, projects]
+    verbs: [get, list, watch]
+
+---
+# =============================================================================
+# ClusterRoleBindings — маппінг груп на ролі
+# Замінити групи на реальні OIDC групи з вашого SSO
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-dev-team
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kargo-dev-promoter
+subjects:
+  - kind: Group
+    name: dev-team  # ЗАМІНИТИ на реальну OIDC групу
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: kargo-dev-team
+    apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-release-managers
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kargo-release-manager
+subjects:
+  - kind: Group
+    name: release-managers  # ЗАМІНИТИ на реальну OIDC групу
+    apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-prod-operators
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kargo-prod-operator
+subjects:
+  - kind: Group
+    name: prod-operators  # ЗАМІНИТИ на реальну OIDC групу
+    apiGroup: rbac.authorization.k8s.io
+
+---
+# Viewer для всіх authenticated users (опціонально)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-all-viewers
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kargo-viewer
+subjects:
+  - kind: Group
+    name: finpaybank-staff
+    apiGroup: rbac.authorization.k8s.io

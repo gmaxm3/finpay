@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Cluster-wide domain configuration for test environment.
+# Injected automatically by ArgoCD ApplicationSet (test-appset.yaml) via kustomize.components.
+# Services do NOT reference this component directly — it applies to all Ingress with ingress-type=external.
+# To change the domain: edit value below, commit. All services update on next ArgoCD sync.
+# NOTE: local `kubectl kustomize overlays/test` will show REPLACE_*_HOST — this is expected.
+#       The host is resolved only during ArgoCD build.
+# TLS certificate is managed via TLSStore in kube-system (infrastructure/traefik/).
+patches:
+- target:
+    kind: Ingress
+    labelSelector: "ingress-type=external"
+  patch: |
+    - op: replace
+      path: /spec/rules/0/host
+      value: online-test.finpay.com.ua
+- target:
+    kind: IngressRoute
+    name: transactions
+  patch: |
+    - op: replace
+      path: /spec/routes/0/match
+      value: "Host(`online-test.finpay.com.ua`) && PathRegexp(`^/api/v1/cards/[^/]+/transactions`)"
+# Future: internal API (internal-test.finpay.com.ua:8443)
+# - target:
+#     kind: Ingress
+#     labelSelector: "ingress-type=internal"
+#   patch: |
+#     - op: replace
+#       path: /spec/rules/0/host
+#       value: internal-test.finpay.com.ua
+# Future: admin panel (admin-test.finpay.com.ua:8443)
+# - target:
+#     kind: Ingress
+#     labelSelector: "ingress-type=admin"
+#   patch: |
+#     - op: replace
+#       path: /spec/rules/0/host
+#       value: admin-test.finpay.com.ua

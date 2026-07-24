@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  balancer:
+    image: nginx:latest
+    container_name: balancer
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl/:/etc/nginx/ssl/:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - app_network
+
+  static:
+    image: finpaybank.kapowai.com.ua/static:26.03.1
+    container_name: static
+    networks:
+      - app_network
+
+  onboarding:
+    image: finpay.kapowai.com.ua/webviews-on-boarding:1.0.0
+    container_name: onboarding
+    networks:
+      - app_network
+
+  push-gateway:
+    image: finpaybank.kapowai.com.ua/push-gateway:26.01.1
+    container_name: push-gateway
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /app/conf/google-account.cfg
+
+    volumes:
+      - ./google_service_account.json:/app/conf/google-account.cfg:ro
+      - ./settings.cfg:/app/settings/settings.cfg:ro
+    networks:
+      - app_network
+
+
+networks:
+  app_network:
+    external: true
+

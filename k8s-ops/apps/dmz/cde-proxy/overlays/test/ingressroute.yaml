@@ -1,0 +1,66 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: cde-transport
+  namespace: test-dmz
+spec:
+  serverName: online-test.finpay.com.ua
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: cde-transport-diia
+  namespace: test-dmz
+spec:
+  serverName: diia-t.finpay.com.ua
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cde-proxy
+  namespace: test-dmz
+  labels:
+    app.kubernetes.io/name: cde-proxy
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+
+spec:
+  entryPoints:
+    - websecure
+
+  routes:
+    # Existing API proxy
+    - match: Host(`online-test.finpay.com.ua`) && PathPrefix(`/api/`)
+      kind: Rule
+      services:
+        - name: cde-traefik
+          port: 30443
+          scheme: https
+          serversTransport: cde-transport
+          passHostHeader: true
+
+    # Diia Sharing webhook
+    - match: Host(`diia-t.finpay.com.ua`) && PathPrefix(`/webhooks/dia`)
+      kind: Rule
+      services:
+        - name: cde-traefik
+          port: 30443
+          scheme: https
+          serversTransport: cde-transport-diia
+          passHostHeader: true
+
+    # Diia Sign webhook
+    - match: Host(`diia-t.finpay.com.ua`) && PathPrefix(`/webhooks/dia-sign`)
+      kind: Rule
+      services:
+        - name: cde-traefik
+          port: 30443
+          scheme: https
+          serversTransport: cde-transport-diia
+          passHostHeader: true
+
+  tls:
+    secretName: finpay-wildcard-tls

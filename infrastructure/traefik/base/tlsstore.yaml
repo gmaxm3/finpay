@@ -1,0 +1,13 @@
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: kube-system
+spec:
+  # Default wildcard certificate for all TLS connections on websecure entrypoint.
+  # Traefik uses SNI to match additional certs in the certificates list.
+  defaultCertificate:
+    secretName: finpay-wildcard-tls
+  # Add more certs here when new domains are needed:
+  # certificates:
+  #   - secretName: other-domain-tls

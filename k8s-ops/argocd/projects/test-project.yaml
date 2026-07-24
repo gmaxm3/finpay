@@ -1,0 +1,96 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: test-project
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: test
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "FinPayBank test environment (test-dmz + test-cde namespaces)"
+
+  sourceRepos:
+    - git@bitbucket.org:Kapowai/finpaybank-gitops.git
+
+  destinations:
+    - server: https://10.201.33.10:6443
+      namespace: test-dmz
+    - server: https://10.201.34.10:6443
+      namespace: test-cde
+    - server: https://10.201.34.10:6443
+      namespace: argocd
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+
+  namespaceResourceWhitelist:
+    - group: "apps"
+      kind: Deployment
+    - group: "apps"
+      kind: StatefulSet
+    - group: "apps"
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
+    - group: "batch"
+      kind: Job
+    - group: "batch"
+      kind: CronJob
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: "networking.k8s.io"
+      kind: NetworkPolicy
+    - group: "networking.k8s.io"
+      kind: Ingress
+    - group: "traefik.io"
+      kind: IngressRoute
+    - group: "traefik.io"
+      kind: ServersTransport
+    - group: "discovery.k8s.io"
+      kind: EndpointSlice
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+    - group: "policy"
+      kind: PodDisruptionBudget
+    - group: "rbac.authorization.k8s.io"
+      kind: Role
+    - group: "rbac.authorization.k8s.io"
+      kind: RoleBinding
+    - group: "bitnami.com"
+      kind: SealedSecret
+    - group: ""
+      kind: Secret
+
+  roles:
+    - name: test-deployer
+      description: "Може синхронізувати всі застосунки в test (через Kargo)"
+      policies:
+        - p, proj:test-project:test-deployer, applications, sync, test-project/*, allow
+        - p, proj:test-project:test-deployer, applications, get, test-project/*, allow
+      groups:
+        - dev-team
+        - kargo  # Kargo service account для automated promotion
+
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: ""
+        kind: Secret
+        name: shared-secrets
+      - group: ""
+        kind: Secret
+        name: webplatform-secrets
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+        name: cde-common-egress

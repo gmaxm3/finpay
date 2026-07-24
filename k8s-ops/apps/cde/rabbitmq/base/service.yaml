@@ -1,0 +1,43 @@
+---
+# Headless Service для StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: rabbitmq
+    zone: cde
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+---
+# ClusterIP Service для management UI (внутрішній доступ)
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-management
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: rabbitmq
+    zone: cde
+  ports:
+    - name: management
+      port: 15672
+      targetPort: 15672

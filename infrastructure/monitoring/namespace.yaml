@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    # monitoring namespace не входить в DMZ або CDE — окремий observability node
+    security-zone: monitoring

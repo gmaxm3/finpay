@@ -1,0 +1,92 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: logging-appset
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+
+  generators:
+    - matrix:
+        generators:
+          # Вісь 1: кластер + overlay per environment
+          - list:
+              elements:
+                - env: dev
+                  cluster: https://DEV_NODE_IP:6443
+                  overlay: dev
+                - env: test-dmz
+                  cluster: https://10.201.33.10:6443
+                  overlay: test
+                - env: test-cde
+                  cluster: https://10.201.34.10:6443
+                  overlay: test
+                - env: stage-dmz
+                  cluster: https://10.201.65.10:6443
+                  overlay: stage
+                - env: stage-cde
+                  cluster: https://10.201.66.10:6443
+                  overlay: stage
+                - env: prod-dmz
+                  cluster: https://10.201.97.10:6443
+                  overlay: prod
+                - env: prod-cde
+                  cluster: https://10.201.98.10:6443
+                  overlay: prod
+
+          # Вісь 2: logging apps (зараз тільки filebeat, легко додати інші)
+          - git:
+              repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+              revision: master
+              directories:
+                - path: "k8s-ops/apps/logging/*"
+                - path: "k8s-ops/apps/logging/_template"
+                  exclude: true
+
+  template:
+    metadata:
+      name: "{{.path.basename}}-{{.env}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: finpaybank
+        app.kubernetes.io/name: "{{.path.basename}}"
+        environment: "{{.env}}"
+      annotations:
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: finpaybank-alerts
+
+    spec:
+      project: logging-project
+
+      source:
+        repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+        targetRevision: master
+        path: "{{.path.path}}/overlays/{{.overlay}}"
+
+      destination:
+        server: "{{.cluster}}"
+        namespace: logging
+
+      # Logging infrastructure: manual sync на всіх env
+      # DaemonSet оновлення — краще контролювати вручну
+      syncPolicy:
+        automated: null
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+
+      ignoreDifferences:
+        - group: apps
+          kind: DaemonSet
+          jsonPointers:
+            - /metadata/annotations

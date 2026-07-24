@@ -1,0 +1,100 @@
+---
+# Prometheus Agent — встановлюється на КОЖЕН workload кластер
+# (dev, test, stage, prod-dmz, prod-cde)
+#
+# Agent mode: збирає метрики локально та відправляє на центральний Prometheus
+# через remote_write. Не зберігає дані локально (менше ресурсів).
+#
+# Встановлення на кожен кластер:
+#   KUBECONFIG=~/.kube/finpaybank-CLUSTER_NAME \
+#   helm upgrade --install prometheus-agent \
+#     prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring --create-namespace \
+#     -f infrastructure/monitoring/prometheus-agent-values.yaml
+#
+# Підставити:
+#   CLUSTER_NAME — dev/test/stage/prod-dmz/prod-cde
+#   OBSERVABILITY_NODE_IP — IP observability ноди
+
+# ArgoCD Application для автоматичного деплою agent на всі кластери
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: prometheus-agent-appset
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - cluster: dev
+            server: https://DEV_NODE_IP:6443
+          - cluster: test
+            server: https://10.201.34.10:6443
+          - cluster: stage
+            server: https://STAGE_NODE_VIP:6443
+          - cluster: prod-dmz
+            server: https://10.201.97.10:6443
+          - cluster: prod-cde
+            server: https://10.201.98.10:6443
+
+  template:
+    metadata:
+      name: "prometheus-agent-{{.cluster}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: finpaybank
+        component: monitoring-agent
+    spec:
+      project: default
+      source:
+        repoURL: https://prometheus-community.github.io/helm-charts
+        chart: kube-prometheus-stack
+        targetRevision: "58.3.1"
+        helm:
+          values: |
+            # Agent mode: тільки збір та remote_write
+            prometheus:
+              prometheusSpec:
+                # Режим агента — не зберігає дані
+                enableFeatures: [agent]
+                externalLabels:
+                  cluster: "{{.cluster}}"
+                  environment: "{{.cluster}}"
+                remoteWrite:
+                  - url: http://OBSERVABILITY_NODE_IP:9090/api/v1/write
+                    # TLS якщо потрібно:
+                    # tlsConfig:
+                    #   insecureSkipVerify: false
+                    #   caFile: /etc/prometheus/certs/ca.crt
+                retention: 2h   # мінімальний буфер на випадок розриву зв'язку
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 1Gi
+            # Вимикаємо компоненти які не потрібні на workload кластері
+            alertmanager:
+              enabled: false
+            grafana:
+              enabled: false
+            prometheusOperator:
+              enabled: true
+            nodeExporter:
+              enabled: true
+            kubeStateMetrics:
+              enabled: true
+      destination:
+        server: "{{.server}}"
+        namespace: monitoring
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

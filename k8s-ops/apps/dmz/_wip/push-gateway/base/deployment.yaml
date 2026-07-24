@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: push-gateway
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: push-gateway
+    app.kubernetes.io/component: notifications
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: push-gateway
+      zone: dmz
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: push-gateway
+        app.kubernetes.io/component: notifications
+        app.kubernetes.io/part-of: finpaybank
+        zone: dmz
+    spec:
+      serviceAccountName: push-gateway
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: registry-credentials
+      containers:
+        - name: push-gateway
+          image: finpaybank.kapowai.com.ua/push-gateway:26.01.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            # Google credentials монтуємо як Secret (не як файл bind mount)
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /app/conf/google-account.cfg
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+#           livenessProbe:
+#             httpGet:
+#               path: /health
+#               port: 8000
+#             initialDelaySeconds: 30
+#             periodSeconds: 30
+#             failureThreshold: 3
+#           readinessProbe:
+#             httpGet:
+#               path: /ready
+#               port: 8000
+#             initialDelaySeconds: 10
+#             periodSeconds: 10
+#           startupProbe:
+#             httpGet:
+#               path: /health
+#               port: 8000
+#             failureThreshold: 30
+#             periodSeconds: 10
+          volumeMounts:
+            - name: google-credentials
+              mountPath: /app/conf
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # SECRET_MANAGER: google-account.cfg — Firebase service account JSON
+        # kubectl create secret generic push-gateway-google-credentials \
+        #   --from-file=google-account.cfg=./google_service_account.json -n NAMESPACE
+        - name: google-credentials
+          secret:
+            secretName: push-gateway-google-credentials
+        - name: settings
+          configMap:
+            name: push-gateway-settings
+        - name: tmp
+          emptyDir: {}

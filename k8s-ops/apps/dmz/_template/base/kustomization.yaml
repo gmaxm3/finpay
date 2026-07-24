@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Всі ресурси сервісу
+resources:
+  - deployment.yaml
+  - service.yaml
+  - networkpolicy.yaml
+  - rbac.yaml
+  - hpa.yaml
+  - pdb.yaml
+
+# ConfigMap з non-secret конфігурацією
+# Secret значення — через SECRET_MANAGER (Sealed Secrets або SOPS)
+configMapGenerator:
+  - name: SERVICE_NAME-config
+    literals:
+      # Замінити на реальні env vars сервісу
+      - APP_ENV=production
+      - LOG_LEVEL=info
+      - SERVICE_PORT=SERVICE_PORT
+      # Приклад env var для RabbitMQ підключення (з CDE)
+      - RABBITMQ_HOST=rabbitmq.prod-cde.svc.cluster.local
+      - RABBITMQ_PORT=5672
+      # SECRET_MANAGER: RABBITMQ_USER та RABBITMQ_PASSWORD — через Secret
+
+# Labels які додаються до всіх ресурсів
+commonLabels:
+  app.kubernetes.io/part-of: finpaybank
+  zone: dmz

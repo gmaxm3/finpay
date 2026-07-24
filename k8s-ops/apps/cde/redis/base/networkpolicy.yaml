@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      zone: cde
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 6379
+          protocol: TCP
+    # sms (DMZ) потребує прямого доступу до Redis для кешування
+    # podSelector навмисно відсутній — kustomize commonLabels додає zone:cde і ламає матч
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: dmz
+      ports:
+        - port: 6379
+          protocol: TCP
+  egress:
+    # DNS тільки
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

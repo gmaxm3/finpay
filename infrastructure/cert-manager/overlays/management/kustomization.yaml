@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# cert-manager для management кластера (ArgoCD + Kargo)
+# Включає base + Certificate об'єкти для ArgoCD/Kargo UI
+#
+# Застосувати: kubectl apply -k infrastructure/cert-manager/overlays/management/
+
+resources:
+  - ../../
+  - ../../argocd-certificate.yaml

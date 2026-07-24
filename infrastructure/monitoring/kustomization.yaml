@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Monitoring stack на observability node
+# Застосувати: kubectl apply -k infrastructure/monitoring/
+#
+# Передумови:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm repo update
+
+namespace: monitoring
+
+resources:
+  - namespace.yaml
+  - prometheus-release.yaml
+  - loki-release.yaml
+  - alertmanager-config.yaml
+  - prometheus-rules.yaml
+  - grafana-dashboards-cm.yaml

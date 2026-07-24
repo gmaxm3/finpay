@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notifications-worker
+  labels:
+    app.kubernetes.io/name: notifications-worker
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+automountServiceAccountToken: false

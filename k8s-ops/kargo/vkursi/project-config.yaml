@@ -1,0 +1,18 @@
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: vkursi
+  namespace: vkursi
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  promotionPolicies:
+    - stage: dev
+      autoPromotionEnabled: true
+    - stage: test
+      autoPromotionEnabled: false
+    - stage: stage
+      autoPromotionEnabled: false
+    - stage: prod
+      autoPromotionEnabled: false

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Traefik TLS configuration — deployed to kube-system on each cluster.
+#
+# TLSStore sets the default wildcard certificate for all websecure connections.
+# Secret (finpay-wildcard-tls) must be deployed per-overlay (SOPS + age encrypted).
+#
+# Apply: kubectl apply -k infrastructure/traefik/overlays/{env}
+#
+# To add a new domain certificate:
+#   1. Encrypt secret: sops -e -i overlays/{env}/secret-{domain}.yaml
+#   2. Add secretRef to tlsstore.yaml under spec.certificates
+#   3. Commit and apply
+
+resources:
+  - tlsstore.yaml
+  - helmchartconfig.yaml

@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - app_network
+
+  kyc-liveness-web:
+    image: hub.kapowai.com.ua/kyc-liveness-web:25.08.01
+    container_name: kyc-liveness-web
+    restart: always
+    depends_on:
+      - kyc-liveness-service
+    ports:
+      - "8080:80"
+    environment:
+      KYC_LIVENESS_API_URL: http://kyc-liveness-service:8000
+    networks:
+      - app_network
+
+  kyc-liveness-service:
+    image: hub.kapowai.com.ua/kyc-liveness-service:25.08.01
+    container_name: kyc-liveness-service
+    restart: always
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - minio
+    ports:
+      - "8081:8000"
+    environment:
+      # працює так, бо в сервісі не коректно settings заданий. треба вкладення через BaseModel а не через Settings
+      minio: '{"host":"minio:9000","access_key":"minio","secret_key":"minio123","secure":false,"bucket_name":"liveness"}'
+      LIVENESS_HOST: https://liveness-dev.finpay.com.ua/
+      MINIO__HOST: minio:9000
+      MINIO__ACCESS_KEY: minio
+      MINIO__SECRET_KEY: minio123
+      MINIO__BUCKET: liveness
+      MINIO__SECURE: "false"
+
+
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: postgresql://dev:devpass@10.201.3.10:5432/devdb
+    networks:
+      - app_network
+
+  kyc-liveness-worker:
+    image: hub.kapowai.com.ua/kyc-liveness-service:25.09.01
+    container_name: kyc-liveness-worker
+    restart: always
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - kyc-liveness-service
+      - minio
+    environment:
+
+      minio: '{"host":"minio:9000","access_key":"minio","secret_key":"minio123","secure":false,"bucket_name":"liveness"}'
+      LIVENESS_HOST: https://liveness-dev.finpay.com.ua/
+      MINIO__HOST: minio:9000
+      MINIO__ACCESS_KEY: minio
+      MINIO__SECRET_KEY: minio123
+      MINIO__BUCKET: liveness
+      MINIO__SECURE: "false"
+
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      DATABASE_URL: postgresql://dev:devpass@10.201.3.10:5432/devdb
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: true
+
+volumes:
+  minio_data:
+

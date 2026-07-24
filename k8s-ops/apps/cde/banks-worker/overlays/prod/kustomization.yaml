@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-cde
+resources:
+  - ../../base
+  - secret-banks-worker.yaml
+images:
+  - name: finpaybank.kapowai.com.ua/banks-worker
+    newTag: 26.5.3
+configMapGenerator:
+  - name: banks-worker-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+      - BANKS_ES_PREFIX=prod
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: banks-worker
+    patch: |-
+      - op: replace
+        path: /spec/egress/4/to/0/ipBlock/cidr
+        value: 10.201.98.21/32
+  - target:
+      kind: Deployment
+      name: banks-worker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: ES_URL
+            valueFrom:
+              secretKeyRef:
+                name: banks-worker-credentials
+                key: ES_URL

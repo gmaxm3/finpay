@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image2text
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: image2text
+    app.kubernetes.io/component: esb
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: image2text
+      zone: cde
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: image2text
+        app.kubernetes.io/component: esb
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    spec:
+      serviceAccountName: image2text
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: dedicated
+                    operator: NotIn
+                    values: [data]
+      imagePullSecrets:
+        - name: registry-credentials
+      containers:
+        - name: image2text
+          image: hub.kapowai.com.ua/image2text-service:1.0.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: image2text-config
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+#           livenessProbe:
+#             httpGet:
+#               path: /health
+#               port: 8000
+#             initialDelaySeconds: 30
+#             periodSeconds: 30
+#             failureThreshold: 3
+#           readinessProbe:
+#             httpGet:
+#               path: /ready
+#               port: 8000
+#             initialDelaySeconds: 10
+#             periodSeconds: 10
+#           startupProbe:
+#             httpGet:
+#               path: /health
+#               port: 8000
+#             failureThreshold: 30
+#             periodSeconds: 10
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: easyocr-cache
+              mountPath: /.EasyOCR
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: easyocr-cache
+          emptyDir: {}

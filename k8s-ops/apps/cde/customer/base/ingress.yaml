@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: customer
+  labels:
+    app.kubernetes.io/name: customer
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+    ingress-type: external
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: REPLACE_ONLINE_HOST
+      http:
+        paths:
+          - path: /api/v1/customer
+            pathType: Prefix
+            backend:
+              service:
+                name: customer
+                port:
+                  number: 8000
+

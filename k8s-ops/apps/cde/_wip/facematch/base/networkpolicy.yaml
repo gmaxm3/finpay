@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: facematch
+  labels:
+    app.kubernetes.io/name: facematch
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: facematch
+      zone: cde
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 8000
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

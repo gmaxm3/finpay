@@ -1,0 +1,73 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: reloader
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    app.kubernetes.io/name: reloader
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+
+  generators:
+    - list:
+        elements:
+          - cluster: dev
+            server: https://DEV_NODE_IP:6443
+          - cluster: test-dmz
+            server: https://10.201.33.10:6443
+          - cluster: test-cde
+            server: https://10.201.34.10:6443
+          - cluster: stage-dmz
+            server: https://10.201.65.10:6443
+          - cluster: stage-cde
+            server: https://10.201.66.10:6443
+          - cluster: prod-dmz
+            server: https://10.201.97.10:6443
+          - cluster: prod-cde
+            server: https://10.201.98.10:6443
+
+  template:
+    metadata:
+      name: "reloader-{{.cluster}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: finpaybank
+        app.kubernetes.io/name: reloader
+        environment: "{{.cluster}}"
+
+    spec:
+      project: default
+
+      source:
+        repoURL: https://stakater.github.io/stakater-charts
+        chart: reloader
+        targetRevision: ">=1.0.0"
+        helm:
+          values: |
+            reloader:
+              watchGlobally: true
+              ignoreSecrets: false
+              ignoreConfigMaps: false
+              logFormat: json
+              podAnnotations:
+                cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+
+      destination:
+        server: "{{.server}}"
+        namespace: reloader
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

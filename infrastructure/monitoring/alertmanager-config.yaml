@@ -1,0 +1,66 @@
+---
+# AlertmanagerConfig — маршрутизація алертів
+# PCI-DSS: критичні алерти (security events) → окремий канал з аудит-логом
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: finpaybank-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  route:
+    receiver: default-slack
+    groupBy: [alertname, namespace, severity]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    routes:
+      # PCI-DSS security алерти — критичний пріоритет
+      - receiver: security-pagerduty
+        matchers:
+          - name: severity
+            value: critical
+        repeatInterval: 1h
+
+      # CDE namespace алерти — окремий канал
+      - receiver: cde-alerts-slack
+        matchers:
+          - name: namespace
+            matchType: =~
+            value: ".*-cde|prod"
+        repeatInterval: 2h
+
+  receivers:
+    - name: default-slack
+      slackConfigs:
+        - apiURL:
+            # SECRET_MANAGER: Slack webhook URL
+            key: slack-webhook-url
+            name: alertmanager-secrets
+          channel: "#finpaybank-alerts"
+          sendResolved: true
+          title: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+          text: |
+            *Namespace:* {{ .CommonLabels.namespace }}
+            *Severity:* {{ .CommonLabels.severity }}
+            {{ range .Alerts }}
+            *Alert:* {{ .Annotations.summary }}
+            *Description:* {{ .Annotations.description }}
+            {{ end }}
+
+    - name: security-pagerduty
+      pagerdutyConfigs:
+        - serviceKey:
+            # SECRET_MANAGER: PagerDuty integration key
+            key: pagerduty-key
+            name: alertmanager-secrets
+          description: 'PCI-DSS Security Alert: {{ .GroupLabels.alertname }}'
+
+    - name: cde-alerts-slack
+      slackConfigs:
+        - apiURL:
+            key: slack-cde-webhook-url
+            name: alertmanager-secrets
+          channel: "#finpaybank-cde-alerts"
+          sendResolved: true

@@ -1,0 +1,106 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dev-appset
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: dev
+spec:
+  # goTemplate: true — дозволяє використовувати Go template синтаксис
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+
+  generators:
+    # Matrix generator: zone (dmz/cde) × сервіси в кожній зоні
+    - matrix:
+        generators:
+          # Перший вимір: зона (dmz або cde)
+          - list:
+              elements:
+                - zone: dmz
+                  namespace: dev-dmz
+                - zone: cde
+                  namespace: dev-cde
+
+          # Drugi вимір: директорії сервісів в даній зоні
+          # Git generator сканує k8s-ops/apps/{zone}/* (виключаючи _template)
+          - git:
+              repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+              revision: master
+              directories:
+                - path: "k8s-ops/apps/{{.zone}}/*"
+                  exclude: false
+                - path: "k8s-ops/apps/{{.zone}}/_template"
+                  exclude: true
+                - path: "k8s-ops/apps/{{.zone}}/_wip"
+                  exclude: true
+                - path: "k8s-ops/apps/{{.zone}}/_wip/*"
+
+  # Фільтр: виключити _template директорії
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: environment
+              operator: In
+              values: [dev]
+
+  template:
+    metadata:
+      # Ім'я Application: {serviceName}-{zone}-dev
+      name: "{{.path.basename}}-{{.zone}}-dev"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: finpaybank
+        app.kubernetes.io/name: "{{.path.basename}}"
+        environment: dev
+        zone: "{{.zone}}"
+      annotations:
+        # ArgoCD notifications (якщо налаштовано)
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: finpaybank-alerts
+        # Дозволяє Kargo Stage "dev" в namespace сервісу мутувати цей Application
+        kargo.akuity.io/authorized-stage: "{{.path.basename}}:dev"
+
+    spec:
+      project: dev-project
+
+      source:
+        repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+        targetRevision: master
+        # Шлях до overlay конкретного сервісу + зони + середовища
+        path: "{{.path.path}}/overlays/dev"
+
+      destination:
+        server: https://DEV_NODE_IP:6443
+        namespace: "{{.namespace}}"
+
+      # dev: повна автоматизація (prune + selfHeal)
+      syncPolicy:
+        automated:
+          prune: true       # видаляти ресурси яких немає в Git
+          selfHeal: true    # відновлювати ресурси якщо хтось змінив вручну
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+          # ServerSideApply: уникаємо конфліктів field managers
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+
+      # Ігноруємо поля які Kubernetes мутує (не наша відповідальність)
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas  # HPA керує replicas
+        - group: ""
+          kind: ConfigMap
+          jsonPointers:
+            - /metadata/resourceVersion

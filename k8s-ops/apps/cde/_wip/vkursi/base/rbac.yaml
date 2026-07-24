@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vkursi
+  labels:
+    app.kubernetes.io/name: vkursi
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+automountServiceAccountToken: false

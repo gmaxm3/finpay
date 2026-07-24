@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: check-for-update
+  labels:
+    app.kubernetes.io/name: check-for-update
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+automountServiceAccountToken: false

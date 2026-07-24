@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: stage-cde
+resources:
+  - ../../base
+  - secret-transactions-worker.yaml
+images:
+  - name: finpaybank.kapowai.com.ua/transactions-worker
+    newTag: "latest"
+configMapGenerator:
+  - name: transactions-worker-config
+    behavior: merge
+    literals:
+      - APP_ENV=stage
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: transactions-worker
+    patch: |
+      - op: add
+        path: /spec/egress/-
+        value:
+          to:
+            - ipBlock:
+                cidr: REPLACE_KAFKA_IP_STAGE/32
+          ports:
+            - port: 9092

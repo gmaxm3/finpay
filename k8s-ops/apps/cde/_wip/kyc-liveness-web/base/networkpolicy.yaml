@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kyc-liveness-web
+  labels:
+    app.kubernetes.io/name: kyc-liveness-web
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kyc-liveness-web
+      zone: cde
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 80
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kyc-liveness-service
+      ports:
+        - port: 8000

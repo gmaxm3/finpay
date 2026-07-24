@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kyc-liveness-web
+  labels:
+    app.kubernetes.io/name: kyc-liveness-web
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kyc-liveness-web
+    zone: cde
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

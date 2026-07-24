@@ -1,0 +1,24 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    deployment:
+      podLabels:
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    service:
+      type: NodePort
+      spec:
+        externalTrafficPolicy: Local
+    ports:
+      websecure:
+        nodePort: 30443
+    additionalArguments:
+      # Trust DMZ Traefik (test DMZ nodes SNAT to 10.201.33.0/24) to forward real client IP.
+      - "--providers.kubernetesingress.allowExternalNameServices=true"
+      - "--serversTransport.insecureSkipVerify=true"
+      - "--entrypoints.websecure.forwardedHeaders.trustedIPs=10.201.33.0/24"
+      - "--accesslog=true"

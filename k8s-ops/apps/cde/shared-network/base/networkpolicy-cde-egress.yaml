@@ -1,0 +1,62 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cde-common-egress
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector: {}   # всі pods у namespace
+  policyTypes: [Egress]
+  egress:
+    # DNS — обов'язково для резолвінгу імен
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+    # PostgreSQL primary — IP задається в overlay кожного env
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.1/32   # placeholder: замінюється в overlay
+      ports:
+        - port: 5432
+
+    # PostgreSQL replica — розкоментувати і задати IP в overlay коли з'явиться
+    # - to:
+    #     - ipBlock:
+    #         cidr: 0.0.0.2/32  # placeholder
+    #   ports:
+    #     - port: 5432
+
+    # Redis — всередині кластера (pod selector, IP не потрібен)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+
+    # RabbitMQ — всередині кластера
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: rabbitmq
+      ports:
+        - port: 5672
+
+    # CDE сервіс-до-сервісу (HTTP)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 8000
+
+    # Зовнішні сервіси (ПЦ/АБС тощо) — додати пізніше
+    # - to:
+    #     - ipBlock:
+    #         cidr: EXTERNAL_SERVICE_IP/32
+    #   ports:
+    #     - port: 443

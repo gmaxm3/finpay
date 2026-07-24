@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod-cde
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: cde-common-egress
+    patch: |-
+      - op: replace
+        path: /spec/egress/1/to/0/ipBlock/cidr
+        value: 10.201.99.10/32
+  - target:
+      kind: NetworkPolicy
+      name: webplatform-egress
+    patch: |-
+      - op: replace
+        path: /spec/egress/0/to/0/ipBlock/cidr
+        value: 10.200.65.100/32 # TODO: замінити на IP webplatform для prod

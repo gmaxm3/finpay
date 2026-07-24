@@ -1,0 +1,148 @@
+---
+# Патч для argocd-cm ConfigMap
+# Застосувати: kubectl patch configmap argocd-cm -n argocd --patch-file argocd-cm-patch.yaml
+#
+# АБО через kustomize — додати до kustomization.yaml:
+#   patches:
+#     - path: argocd-cm-patch.yaml
+#       target:
+#         kind: ConfigMap
+#         name: argocd-cm
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+data:
+  # Дозволити admin генерувати API token (для Kargo integration)
+  accounts.admin: apiKey,login
+  # Bitbucket репозиторій — SSH підключення
+  # ArgoCD v3: repositories тільки через Secrets (не в argocd-cm)
+  # Створити один раз на management node:
+  #   kubectl create secret generic argocd-repo-creds \
+  #     --from-literal=type=git \
+  #     --from-literal=url=git@bitbucket.org:Kapowai \
+  #     --from-file=sshPrivateKey=~/.ssh/argocd_bitbucket_ed25519 \
+  #     -n argocd
+  #   kubectl label secret argocd-repo-creds \
+  #     argocd.argoproj.io/secret-type=repo-creds -n argocd
+
+  # Ресурси які ArgoCD НЕ управляє (tracked але не sync)
+  resource.exclusions: |
+    - apiGroups:
+        - cilium.io
+      kinds:
+        - CiliumIdentity
+      clusters:
+        - "*"
+
+  # Кастомні health checks для наших CRD
+  resource.customizations.health.argoproj.io_Application: |
+    hs = {}
+    hs.status = "Progressing"
+    hs.message = ""
+    if obj.status ~= nil then
+      if obj.status.health ~= nil then
+        hs.status = obj.status.health.status
+        if obj.status.health.message ~= nil then
+          hs.message = obj.status.health.message
+        end
+      end
+    end
+    return hs
+
+  # Traefik Service в CDE/DMZ кластерах — type: NodePort (infrastructure/traefik/overlays/*),
+  # тому status.loadBalancer.ingress ніколи не заповнюється і дефолтна ArgoCD
+  # health-перевірка для Ingress залишається "Progressing" назавжди (всі сервіси з Ingress).
+  resource.customizations.health.networking.k8s.io_Ingress: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = "Ingress synced (Traefik NodePort does not populate status.loadBalancer)"
+    return hs
+
+  # Timeout для sync операцій
+  timeout.reconciliation: 180s
+
+  # ApplicationSet — дозволити створення Applications в будь-якому namespace
+  application.namespaces: "argocd"
+
+  # PCI-DSS: увімкнути аудит лог
+  server.enable.gzip: "true"
+
+  # URL ArgoCD (для notifications та deep links)
+  url: https://argocd.online-test.finpay.com.ua
+
+---
+# argocd-notifications-cm — базова конфігурація сповіщень
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # Slack integration
+  service.slack: |
+    token: $slack-token
+
+  # Шаблони сповіщень
+  template.app-sync-failed: |
+    slack:
+      attachments: |
+        [{
+          "title": "{{ .app.metadata.name }}",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "color": "#E96D76",
+          "fields": [{
+            "title": "Sync Status",
+            "value": "{{.app.status.sync.status}}",
+            "short": true
+          }, {
+            "title": "Environment",
+            "value": "{{.app.metadata.labels.environment}}",
+            "short": true
+          }, {
+            "title": "Zone",
+            "value": "{{.app.metadata.labels.zone}}",
+            "short": true
+          }, {
+            "title": "Message",
+            "value": "{{range .app.status.conditions}}{{.message}}{{end}}",
+            "short": false
+          }]
+        }]
+
+  template.app-sync-succeeded: |
+    slack:
+      attachments: |
+        [{
+          "title": "{{ .app.metadata.name }} — sync succeeded",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "color": "#18be52",
+          "fields": [{
+            "title": "Environment",
+            "value": "{{.app.metadata.labels.environment}}",
+            "short": true
+          }, {
+            "title": "Zone",
+            "value": "{{.app.metadata.labels.zone}}",
+            "short": true
+          }]
+        }]
+
+  # Тригери
+  trigger.on-sync-failed: |
+    - description: Application syncing has failed
+      send: [app-sync-failed]
+      when: app.status.operationState.phase in ['Error', 'Failed']
+
+  trigger.on-sync-succeeded: |
+    - description: Application syncing has succeeded
+      send: [app-sync-succeeded]
+      when: app.status.operationState.phase in ['Succeeded']
+
+  trigger.on-health-degraded: |
+    - description: Application has degraded
+      send: [app-sync-failed]
+      when: app.status.health.status == 'Degraded'

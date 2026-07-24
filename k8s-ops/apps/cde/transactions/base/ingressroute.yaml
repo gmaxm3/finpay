@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: transactions
+  labels:
+    app.kubernetes.io/name: transactions
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`REPLACE_ONLINE_HOST`) && PathRegexp(`^/api/v1/cards/[^/]+/transactions`)
+      kind: Rule
+      priority: 100
+      services:
+        - name: transactions
+          port: 8000
+  tls: {}

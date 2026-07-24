@@ -1,0 +1,103 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: stage-project
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: stage
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "FinPayBank stage environment (два окремих k3s: stage-dmz + stage-cde)"
+
+  sourceRepos:
+    - git@bitbucket.org:Kapowai/finpaybank-gitops.git
+
+  destinations:
+    - server: https://10.201.65.10:6443
+      namespace: stage-dmz
+    - server: https://10.201.66.10:6443
+      namespace: stage-cde
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+
+  namespaceResourceWhitelist:
+    - group: "apps"
+      kind: Deployment
+    - group: "apps"
+      kind: StatefulSet
+    - group: "apps"
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
+    - group: "batch"
+      kind: Job
+    - group: "batch"
+      kind: CronJob
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: "networking.k8s.io"
+      kind: NetworkPolicy
+    - group: "networking.k8s.io"
+      kind: Ingress
+    - group: "traefik.io"
+      kind: IngressRoute
+    - group: "traefik.io"
+      kind: ServersTransport
+    - group: "discovery.k8s.io"
+      kind: EndpointSlice
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+    - group: "policy"
+      kind: PodDisruptionBudget
+    - group: "rbac.authorization.k8s.io"
+      kind: Role
+    - group: "rbac.authorization.k8s.io"
+      kind: RoleBinding
+    # Sealed Secrets або SOPS — залежить від SECRET_MANAGER
+    - group: "bitnami.com"
+      kind: SealedSecret
+    - group: ""
+      kind: Secret
+
+  roles:
+    - name: stage-deployer
+      description: "Тільки Kargo може синхронізувати stage (після manual approval)"
+      policies:
+        - p, proj:stage-project:stage-deployer, applications, sync, stage-project/*, allow
+        - p, proj:stage-project:stage-deployer, applications, get, stage-project/*, allow
+      groups:
+        - kargo  # тільки Kargo service account
+        - release-managers
+
+    - name: stage-viewer
+      description: "Перегляд без права синхронізації"
+      policies:
+        - p, proj:stage-project:stage-viewer, applications, get, stage-project/*, allow
+      groups:
+        - dev-team
+
+  # Stage: orphaned resources — видаляти (stage має відповідати Git)
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: ""
+        kind: Secret
+        name: shared-secrets
+      - group: ""
+        kind: Secret
+        name: webplatform-secrets
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+        name: cde-common-egress

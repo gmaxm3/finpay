@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onboarding-scheduler
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: onboarding-scheduler
+    app.kubernetes.io/component: esb
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: onboarding-scheduler
+      zone: cde
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: onboarding-scheduler
+        app.kubernetes.io/component: esb
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    spec:
+      serviceAccountName: onboarding-scheduler
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: dedicated
+                    operator: NotIn
+                    values: [data]
+      imagePullSecrets:
+        - name: registry-credentials
+      containers:
+        - name: onboarding-scheduler
+          image: finpaybank.kapowai.com.ua/onboarding-scheduler:latest
+          workingDir: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          envFrom:
+            - configMapRef:
+                name: onboarding-scheduler-config
+            - secretRef:
+                name: shared-secrets
+            - secretRef:
+                name: webplatform-secrets
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

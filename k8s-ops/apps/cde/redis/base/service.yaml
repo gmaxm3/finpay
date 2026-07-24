@@ -1,0 +1,21 @@
+---
+# Headless Service — для StatefulSet DNS (redis-0.redis.namespace.svc.cluster.local)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  clusterIP: None  # headless
+  selector:
+    app.kubernetes.io/name: redis
+    zone: cde
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP

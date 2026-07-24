@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: test-cde
+resources:
+- ../../base
+- secret-transactions-worker.yaml
+images:
+- name: finpaybank.kapowai.com.ua/transactions-worker
+  newTag: 26.6.2
+configMapGenerator:
+- name: transactions-worker-config
+  behavior: merge
+  literals:
+  - APP_ENV=test
+patches:
+- target:
+    kind: Deployment
+  patch: |
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: "50m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: "500m"
+- target:
+    kind: NetworkPolicy
+    name: transactions-worker
+  patch: |
+    - op: add
+      path: /spec/egress/-
+      value:
+        to:
+          - ipBlock:
+              cidr: 10.200.2.30/32  # lsuat-kafka-1.finpay-bs.local
+        ports:
+          - port: 9092

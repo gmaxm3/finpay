@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Cluster-wide domain configuration for dev environment.
+# To change a domain — edit the value here, commit. All services pick it up automatically.
+# TLS certificate is managed via TLSStore in kube-system (infrastructure/traefik/).
+patches:
+- target:
+    kind: Ingress
+    labelSelector: "ingress-type=external"
+  patch: |
+    - op: replace
+      path: /spec/rules/0/host
+      value: online-dev.finpay.com.ua
+- target:
+    kind: IngressRoute
+    name: transactions
+  patch: |
+    - op: replace
+      path: /spec/routes/0/match
+      value: "Host(`online-dev.finpay.com.ua`) && PathRegexp(`^/api/v1/cards/[^/]+/transactions`)"
+# Future: internal API (internal-dev.finpay.com.ua:8443)
+# - target:
+#     kind: Ingress
+#     labelSelector: "ingress-type=internal"
+#   patch: |
+#     - op: replace
+#       path: /spec/rules/0/host
+#       value: internal-dev.finpay.com.ua
+# Future: admin panel (admin-dev.finpay.com.ua:8443)
+# - target:
+#     kind: Ingress
+#     labelSelector: "ingress-type=admin"
+#   patch: |
+#     - op: replace
+#       path: /spec/rules/0/host
+#       value: admin-dev.finpay.com.ua

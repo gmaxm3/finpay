@@ -1,0 +1,366 @@
+<mxfile host="Claude Code" modified="2026-04-10" agent="Claude" version="24.0.0" type="device">
+  <diagram id="prod-architecture" name="FinPayBank PROD Architecture">
+    <mxGraphModel dx="1920" dy="1080" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===== TITLE ===== -->
+        <mxCell id="title" value="FinPayBank — PROD Architecture (PCI-DSS)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="527" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ===== INTERNET ===== -->
+        <mxCell id="internet" value="🌐 INTERNET" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="620" y="80" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== MANAGEMENT NODE ===== -->
+        <mxCell id="mgmt-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="480" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="mgmt-label" value="MANAGEMENT NODE" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;fontSize=11;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="480" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="argocd" value="ArgoCD Hub&#xa;v2.10.4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="110" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="kargo" value="Kargo&#xa;v0.8.0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="110" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== PROD-DMZ CLUSTER ===== -->
+        <mxCell id="dmz-cluster" value="" style="swimlane;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=13;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="250" width="560" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="dmz-cluster-label" value="prod-dmz cluster  |  2 ноди  |  zone: dmz  |  Internet-facing  |  namespace: prod" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#7a5c00;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="0" y="0" width="560" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Traefik Ingress -->
+        <mxCell id="traefik" value="Traefik IngressController&#xa;TLS termination&#xa;Rate limiting" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;fontStyle=1;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="180" y="50" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- nginx -->
+        <mxCell id="nginx" value="nginx&#xa;(балансувальник)&#xa;nginx:1.27" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="180" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- static -->
+        <mxCell id="static" value="static&#xa;(Frontend Angular SPA)&#xa;static:26.03.1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="30" y="240" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- onboarding-web -->
+        <mxCell id="onboarding-web" value="onboarding-web&#xa;(Web SPA)&#xa;webviews-on-boarding:1.0.0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="230" y="240" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- kyc-liveness-web -->
+        <mxCell id="kyc-web" value="kyc-liveness-web&#xa;(KYC UI)&#xa;kyc-liveness-web:25.08.01" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="350" y="240" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- push-gateway -->
+        <mxCell id="push-gw" value="push-gateway&#xa;push-gateway:26.01.1&#xa;→ FCM :443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="30" y="350" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- sms -->
+        <mxCell id="sms" value="sms&#xa;sms:26.02.1&#xa;→ SMS provider :443/:80" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="230" y="350" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- DMZ NetworkPolicy note -->
+        <mxCell id="dmz-netpol" value="NetworkPolicy:&#xa;• Ingress: Traefik → nginx → сервіси&#xa;• Egress: тільки → RabbitMQ CDE:5672&#xa;• Egress: push-gateway → FCM:443&#xa;• Egress: sms → provider:443/80&#xa;• Egress: DNS:53" style="text;html=1;strokeColor=#d6b656;fillColor=#fffde7;align=left;verticalAlign=top;spacingLeft=6;fontSize=10;rounded=1;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="30" y="450" width="500" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- DMZ nodes info -->
+        <mxCell id="dmz-nodes" value="Ноди: prod-dmz-node-1, prod-dmz-node-2 (HA)&#xa;imagePullSecrets: registry-credentials&#xa;Replicas: 2+ (nginx: 2, sms: 2, push-gateway: 2)" style="text;html=1;strokeColor=#d6b656;fillColor=#fff8e1;align=left;verticalAlign=top;spacingLeft=6;fontSize=10;rounded=1;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="30" y="560" width="500" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- PCI-DSS compliance badges for DMZ -->
+        <mxCell id="dmz-pci" value="✓ runAsNonRoot  ✓ readOnlyRootFilesystem  ✓ allowPrivilegeEscalation:false&#xa;✓ capabilities.drop: ALL  ✓ seccompProfile: RuntimeDefault  ✓ RBAC per-service" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;spacingLeft=6;fontSize=10;rounded=1;fontStyle=0;" vertex="1" parent="dmz-cluster">
+          <mxGeometry x="30" y="640" width="500" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===== PROD-CDE CLUSTER ===== -->
+        <mxCell id="cde-cluster" value="" style="swimlane;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=13;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="680" y="250" width="700" height="720" as="geometry" />
+        </mxCell>
+        <mxCell id="cde-cluster-label" value="prod-cde cluster  |  3 ноди  |  zone: cde  |  PCI-DSS scope  |  NO internet  |  namespace: prod" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#7a0000;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="0" y="0" width="700" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- StatefulSets section -->
+        <mxCell id="statefulsets-bg" value="StatefulSets (data node: prod-cde-node-3)" style="swimlane;startSize=25;fillColor=#fce4ec;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="20" y="45" width="660" height="155" as="geometry" />
+        </mxCell>
+
+        <mxCell id="redis" value="Redis 8&#xa;StatefulSet&#xa;50Gi PVC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="statefulsets-bg">
+          <mxGeometry x="15" y="35" width="130" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="rabbitmq" value="RabbitMQ 4&#xa;StatefulSet&#xa;50Gi PVC&#xa;Management UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="statefulsets-bg">
+          <mxGeometry x="165" y="35" width="130" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="elasticsearch" value="Elasticsearch&#xa;7.4.2 StatefulSet&#xa;200Gi PVC&#xa;xpack.security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="statefulsets-bg">
+          <mxGeometry x="315" y="35" width="130" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="minio" value="MinIO&#xa;StatefulSet&#xa;50Gi PVC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="statefulsets-bg">
+          <mxGeometry x="465" y="35" width="130" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- api-gateway -->
+        <mxCell id="api-gw" value="api-gateway&#xa;nginx:1.27&#xa;(Internal router)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="260" y="220" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ESB services row 1 -->
+        <mxCell id="identity" value="identity&#xa;25.09.3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="20" y="310" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="cards" value="cards ⚠️ PCI&#xa;latest→digest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="165" y="310" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="payments" value="payments&#xa;latest→digest&#xa;2x approval" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="310" y="310" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ukrcard" value="ukrcard ⚠️ PCI&#xa;latest→digest&#xa;→ ПЦ/АБС" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="455" y="310" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="customer" value="customer&#xa;latest→digest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="600" y="310" width="85" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ESB services row 2 -->
+        <mxCell id="transactions" value="transactions&#xa;+ worker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="20" y="380" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications" value="notifications&#xa;+ worker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="165" y="380" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="banks" value="banks&#xa;+ worker&#xa;→ ES" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="310" y="380" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="onboarding" value="onboarding&#xa;26.03.11" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="455" y="380" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="kyc-svc" value="kyc-liveness&#xa;service+worker&#xa;→ minio/postgres" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="600" y="380" width="85" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ESB services row 3 -->
+        <mxCell id="password-recovery" value="password-recovery&#xa;26.03.4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="20" y="450" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-update" value="customers-update&#xa;26.01.7" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="165" y="450" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="qr" value="qr  |  print-reports&#xa;check-for-update&#xa;maintenance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="310" y="450" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ukrpost" value="ukrpost-client&#xa;26.02.3&#xa;→ External API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="455" y="450" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="vkursi" value="vkursi-client&#xa;26.02.4&#xa;→ External API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="600" y="450" width="85" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- CDE NetworkPolicy -->
+        <mxCell id="cde-netpol" value="NetworkPolicy:&#xa;• Ingress: тільки від DMZ RabbitMQ-клієнтів (port 5672) та api-gateway&#xa;• Egress: postgres (CDE→bare metal :5432)  |  DNS:53&#xa;• NO internet egress  |  ukrpost/vkursi → External через proxy/allowlist" style="text;html=1;strokeColor=#b85450;fillColor=#fce4ec;align=left;verticalAlign=top;spacingLeft=6;fontSize=10;rounded=1;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="20" y="520" width="660" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- CDE PCI compliance -->
+        <mxCell id="cde-pci" value="✓ runAsNonRoot  ✓ readOnlyRootFilesystem  ✓ allowPrivilegeEscalation:false  ✓ capabilities.drop: ALL&#xa;✓ seccompProfile: RuntimeDefault  ✓ RBAC per-service  ✓ automountServiceAccountToken: false&#xa;⚠ C-1: prod overlays newTag:latest → потребує digest  ⚠ H-1: ES initContainer privileged:true" style="text;html=1;strokeColor=#b85450;fillColor=#fce4ec;align=left;verticalAlign=top;spacingLeft=6;fontSize=10;rounded=1;" vertex="1" parent="cde-cluster">
+          <mxGeometry x="20" y="610" width="660" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ===== OBSERVABILITY NODE ===== -->
+        <mxCell id="obs-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1010" width="700" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-label" value="OBSERVABILITY NODE" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;fontSize=11;fontStyle=1;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1010" width="700" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="prometheus" value="Prometheus&#xa;kube-prometheus-stack 58.3.1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1040" width="195" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="loki" value="Loki&#xa;Log aggregation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="275" y="1040" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="grafana" value="Grafana&#xa;Dashboards" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="445" y="1040" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="alertmanager" value="Alertmanager&#xa;PCI-DSS alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="615" y="1040" width="110" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== POSTGRESQL BARE METAL ===== -->
+        <mxCell id="postgres-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="800" y="1010" width="420" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="pg-label" value="POSTGRESQL (bare metal — поза K8s)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;fontSize=11;fontStyle=1;fontColor=#006EAF;" vertex="1" parent="1">
+          <mxGeometry x="800" y="1010" width="420" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="pg-primary" value="db-primary&#xa;:5432" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="1040" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pg-replica" value="db-replica&#xa;:5432 (read-only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="1040" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== EXTERNAL SERVICES ===== -->
+        <mxCell id="ext-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="250" width="340" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="ext-label" value="EXTERNAL SERVICES" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;fontSize=11;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="250" width="340" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm" value="Google FCM&#xa;(Firebase :443)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="280" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sms-provider" value="SMS Provider&#xa;(:443/:80)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="360" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pc-abs" value="ПЦ / АБС&#xa;(Платіжний центр&#xa;Core Banking)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="440" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ukrpost-ext" value="Укрпошта API&#xa;(External)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="530" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="vkursi-ext" value="Vkursi API&#xa;(External)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="610" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="registry" value="Container Registry&#xa;hub.kapowai.com.ua&#xa;finpaybank.kapowai.com.ua" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="690" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===== CONNECTIONS ===== -->
+
+        <!-- Internet → Traefik (DMZ) -->
+        <mxCell id="e-inet-traefik" value="HTTPS :443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;fontColor=#006EAF;fontSize=10;fontStyle=1;" edge="1" source="internet" target="traefik" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Management → DMZ cluster -->
+        <mxCell id="e-mgmt-dmz" value="kubectl apply&#xa;(ArgoCD sync)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="argocd" target="dmz-cluster" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Management → CDE cluster -->
+        <mxCell id="e-mgmt-cde" value="kubectl apply&#xa;(ArgoCD sync)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="argocd" target="cde-cluster" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Kargo → ArgoCD (internal management) -->
+        <mxCell id="e-kargo-argocd" value="promotion trigger" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=10;" edge="1" source="kargo" target="argocd" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- DMZ push-gateway → FCM -->
+        <mxCell id="e-push-fcm" value=":443" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#666666;fontSize=10;dashed=1;" edge="1" source="push-gw" target="fcm" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- DMZ sms → SMS provider -->
+        <mxCell id="e-sms-prov" value=":443/:80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#666666;fontSize=10;dashed=1;" edge="1" source="sms" target="sms-provider" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ukrcard → ПЦ/АБС -->
+        <mxCell id="e-ukrcard-pc" value="TLS mTLS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontSize=10;dashed=1;" edge="1" source="ukrcard" target="pc-abs" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ukrpost → Укрпошта API -->
+        <mxCell id="e-ukrpost-ext" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#666666;fontSize=10;dashed=1;" edge="1" source="ukrpost" target="ukrpost-ext" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- vkursi → Vkursi API -->
+        <mxCell id="e-vkursi-ext" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#666666;fontSize=10;dashed=1;" edge="1" source="vkursi" target="vkursi-ext" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CDE → PostgreSQL -->
+        <mxCell id="e-cde-pg" value="TCP :5432&#xa;(тільки з CDE)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#b85450;fontColor=#b85450;fontSize=10;fontStyle=1;" edge="1" source="cde-cluster" target="pg-primary" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- DMZ RabbitMQ bridge label -->
+        <mxCell id="rmq-bridge" value="RabbitMQ :5672&#xa;(DMZ → CDE only)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d79b00;fontColor=#d79b00;fontSize=11;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="dmz-cluster" target="cde-cluster" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Observability ← clusters metrics -->
+        <mxCell id="e-obs-dmz" value="Prometheus Agent&#xa;remote_write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=10;dashed=1;" edge="1" source="dmz-cluster" target="prometheus" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-obs-cde" value="Prometheus Agent&#xa;remote_write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#9673a6;fontColor=#9673a6;fontSize=10;dashed=1;" edge="1" source="cde-cluster" target="prometheus" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Kargo ← Registry -->
+        <mxCell id="e-kargo-registry" value="image polling&#xa;(Warehouse)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#82b366;fontColor=#82b366;fontSize=10;dashed=1;" edge="1" source="kargo" target="registry" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- pg primary → replica -->
+        <mxCell id="e-pg-repl" value="streaming replication" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#6c8ebf;fontSize=10;" edge="1" source="pg-primary" target="pg-replica" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== LEGEND ===== -->
+        <mxCell id="legend-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="800" width="340" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="ЛЕГЕНДА" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="808" width="340" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" value="" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1295" y="838" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l1t" value="DMZ сервіс (internet-facing)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1335" y="838" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1295" y="868" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l2t" value="CDE сервіс (PCI-DSS scope, no internet)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1335" y="868" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" value="" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1295" y="898" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l3t" value="GitOps компонент (ArgoCD/Kargo)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1335" y="898" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" value="" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1295" y="928" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l4t" value="Observability (Prometheus/Grafana/Loki)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1335" y="928" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" value="" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1295" y="958" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l5t" value="Bare metal / External" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1335" y="958" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l6t" value="⚠ = Critical/High issue (review findings)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1295" y="988" width="310" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ===== KARGO PROMOTION FLOW LABEL ===== -->
+        <mxCell id="kargo-flow" value="KARGO PROMOTION FLOW:&#xa;CI push → dev (auto) → test (auto) → stage (manual) → prod (manual, 2x для payments)" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;spacingLeft=6;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1140" width="1240" height="40" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

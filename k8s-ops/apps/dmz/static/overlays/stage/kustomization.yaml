@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: stage-dmz
+resources:
+  - ../../base
+images:
+  - name: finpaybank.kapowai.com.ua/static
+    newTag: "26.03.1"
+configMapGenerator:
+  - name: static-config
+    behavior: merge
+    literals:
+      - APP_ENV=stage
+      - RABBITMQ_HOST=rabbitmq.stage-cde.svc.cluster.local

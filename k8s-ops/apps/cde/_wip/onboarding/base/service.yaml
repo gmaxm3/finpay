@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: onboarding
+  labels:
+    app.kubernetes.io/name: onboarding
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: onboarding
+    zone: cde
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

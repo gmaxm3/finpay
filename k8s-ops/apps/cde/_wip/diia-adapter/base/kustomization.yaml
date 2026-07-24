@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+  - rbac.yaml
+configMapGenerator:
+  - name: diia-adapter-config
+    literals:
+      - APP_ENV=production
+      - RETURN_LINK=https://online.finpay.com.ua/diia
+      - DEFAULT_RETURN_DOMAIN=https://online.finpay.com.ua
+      - WEBHOOK_DOMAIN=https://diia-p.finpay.com.ua
+      - WEBHOOK_ENDPOINT=/webhooks/dia
+      - SIGN_WEBHOOK_ENDPOINT=/webhooks/dia-sign
+      - SIGN_RETURN_LINK=https://online.finpay.com.ua/diia-sign
+commonLabels:
+  app.kubernetes.io/part-of: finpaybank
+  zone: cde

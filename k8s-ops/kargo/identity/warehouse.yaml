@@ -1,0 +1,25 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: identity
+  namespace: identity
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  # Kargo поллить обидва registry — бере перший доступний image
+  # Credentials: secret "registry-credentials" в namespace kargo
+  # (створюється 06-bootstrap-kargo.sh, НЕ зберігається в Git)
+  subscriptions:
+    # Основний registry
+    - image:
+        repoURL: hub.kapowai.com.ua/identity
+        # SemVer стратегія: підхоплює нові теги що відповідають semver
+        # Наприклад: 1.2.3, v1.2.3, 1.2.3-hotfix
+        imageSelectionStrategy: SemVer
+        semverConstraint: ">=0.1.0"
+        # Credentials зі спільного secret в namespace kargo
+
+  # Інтервал поллінгу registry
+  # 5 хвилин — баланс між швидкістю доставки та навантаженням на registry
+  interval: 5m0s

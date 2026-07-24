@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Stakater Reloader — автоматичний rolling restart при зміні Secret/ConfigMap
+# Застосувати окремо: kubectl apply -k infrastructure/reloader/
+# АБО ArgoCD задеплоїть автоматично після застосування applicationset.yaml
+
+resources:
+  - applicationset.yaml

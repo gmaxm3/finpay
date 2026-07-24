@@ -1,0 +1,56 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ukrcard
+  labels:
+    app.kubernetes.io/name: ukrcard
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ukrcard
+      zone: cde
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 8000
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: rabbitmq
+      ports:
+        - port: 5672
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+    - to:
+        - ipBlock:
+            cidr: 10.201.35.10/32
+      ports:
+        - port: 5432
+    - to:
+        - ipBlock:
+            cidr: 10.0.8.227/32  # nsuapi.ukrcard.com.ua
+      ports:
+        - port: 443
+          protocol: TCP
+    - to:
+        - ipBlock:
+            cidr: 10.0.11.8/32  # uapi2.ukrcard.com.ua prod
+      ports:
+        - port: 443
+          protocol: TCP

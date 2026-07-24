@@ -1,0 +1,117 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: prod-project
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: prod
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "FinPayBank prod environment (два окремих k3s: prod-dmz + prod-cde)"
+
+  sourceRepos:
+    - git@bitbucket.org:Kapowai/finpaybank-gitops.git
+
+  destinations:
+    - server: https://10.201.97.10:6443
+      namespace: prod-dmz
+    - server: https://10.201.98.10:6443
+      namespace: prod-cde
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: ""
+      kind: PersistentVolume
+
+  namespaceResourceWhitelist:
+    - group: "apps"
+      kind: Deployment
+    - group: "apps"
+      kind: StatefulSet
+    - group: "apps"
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
+    - group: "batch"
+      kind: Job
+    - group: "batch"
+      kind: CronJob
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: "networking.k8s.io"
+      kind: NetworkPolicy
+    - group: "networking.k8s.io"
+      kind: Ingress
+    - group: "traefik.io"
+      kind: IngressRoute
+    - group: "traefik.io"
+      kind: ServersTransport
+    - group: "discovery.k8s.io"
+      kind: EndpointSlice
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+    - group: "policy"
+      kind: PodDisruptionBudget
+    - group: "rbac.authorization.k8s.io"
+      kind: Role
+    - group: "rbac.authorization.k8s.io"
+      kind: RoleBinding
+    - group: "bitnami.com"
+      kind: SealedSecret
+    - group: ""
+      kind: Secret
+    - group: "cert-manager.io"
+      kind: Certificate
+
+  roles:
+    - name: prod-operator
+      description: "Manual sync prod тільки після Kargo approval (payments: 2x)"
+      policies:
+        - p, proj:prod-project:prod-operator, applications, sync, prod-project/*, allow
+        - p, proj:prod-project:prod-operator, applications, get, prod-project/*, allow
+        - p, proj:prod-project:prod-operator, applications, override, prod-project/*, allow
+      groups:
+        - prod-operators
+
+    - name: kargo-updater
+      policies:
+        - p, proj:prod-project:kargo-updater, applications, get, prod-project/*, allow
+      groups:
+        - kargo
+
+    - name: prod-viewer
+      description: "Перегляд без права синхронізації"
+      policies:
+        - p, proj:prod-project:prod-viewer, applications, get, prod-project/*, allow
+      groups:
+        - dev-team
+        - release-managers
+
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: ""
+        kind: Secret
+        name: shared-secrets
+      - group: ""
+        kind: Secret
+        name: webplatform-secrets
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+        name: cde-common-egress
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+        name: dmz-common-egress

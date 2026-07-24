@@ -1,0 +1,62 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code agent memory (персональний кеш, не для командного шерингу)
+.claude/agent-memory/
+
+# Logs
+*.log
+
+# --- БЕЗПЕКА: ніколи не комітити plain-text секрети ---
+*.env
+.env*
+*.key
+*.pem
+*.pfx
+*.p12
+
+# SOPS + age: приватні ключі — НЕ комітити
+age-key.txt
+*-age-key.txt
+.argocd-age-key.txt
+infrastructure/secrets/.argocd-age-key.txt
+
+# Незашифровані secret файли (до запуску sops -e)
+# Зашифровані secret*.yaml (містять sops: metadata) — комітити МОЖНА
+*.secret.plaintext
+*.dec.yaml
+
+# vscode-sops: тимчасові розшифровані файли (signageos/vscode-sops plugin)
+.decrypted~*
+
+# Але дозволяємо sealed secrets та sops-зашифровані файли
+!*.sealed.yaml
+!*.sealed.yml
+
+# Kustomize build output (генерується локально)
+/build/
+
+# Helm
+charts/*/charts/
+*.tgz
+
+# Temp
+tmp/
+.tmp/
+
+# Java / Maven (для можливих утиліт)
+*.class
+*.jar
+target/
+
+# Node (для можливих скриптів)
+node_modules/
+dist/
+var/

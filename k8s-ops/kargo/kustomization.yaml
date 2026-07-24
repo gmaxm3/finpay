@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Застосовується на management node після 03-install-kargo.sh:
+#   kubectl apply -k k8s-ops/kargo/
+#
+# Увага: _template НЕ включається — це шаблон для нових сервісів,
+# не реальний Kargo project.
+
+namespace: kargo
+
+resources:
+  - argocd-integration.yaml
+  - rbac.yaml
+  # Сервісні pipeline додаються тут після додавання кожного сервісу:
+  # - ../kargo/my-service/project.yaml
+  # - ../kargo/my-service/warehouse.yaml
+  # - ../kargo/my-service/stages.yaml

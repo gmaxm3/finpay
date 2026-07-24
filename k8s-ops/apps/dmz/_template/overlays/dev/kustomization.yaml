@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev-dmz
+
+resources:
+  - ../../base
+
+# Image tag для dev — оновлюється Kargo після CI push
+images:
+  - name: hub.kapowai.com.ua/SERVICE_NAME
+    newTag: "latest"  # Kargo замінить на конкретний тег/digest
+
+# Dev-специфічні patches
+patches:
+  - target:
+      kind: Deployment
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "50m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "64Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "200m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+
+  # HPA: dev не потребує автоскейлінгу
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+
+configMapGenerator:
+  - name: SERVICE_NAME-config
+    behavior: merge
+    literals:
+      - APP_ENV=dev
+      - LOG_LEVEL=debug
+      - RABBITMQ_HOST=rabbitmq.dev-cde.svc.cluster.local

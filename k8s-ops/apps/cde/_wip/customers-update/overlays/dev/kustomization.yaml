@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev-cde
+resources:
+  - ../../base
+images:
+  - name: finpaybank.kapowai.com.ua/customers-update
+    newTag: "26.01.7"
+configMapGenerator:
+  - name: customers-update-config
+    behavior: merge
+    literals:
+      - APP_ENV=dev

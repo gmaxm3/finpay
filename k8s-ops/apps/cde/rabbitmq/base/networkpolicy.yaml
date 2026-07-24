@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+      zone: cde
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # AMQP: від CDE сервісів (ESB producers/consumers)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 5672
+          protocol: TCP
+    # AMQP: від DMZ сервісів (тільки outbound до RabbitMQ — архітектурна вимога)
+    # DMZ → RabbitMQ:5672 — єдиний дозволений канал DMZ→CDE
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: dmz
+      ports:
+        - port: 5672
+          protocol: TCP
+    # Management UI: тільки з CDE namespace (для адміністрування)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 15672
+          protocol: TCP
+  egress:
+    # DNS тільки
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

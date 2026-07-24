@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: test-cde
+resources:
+  - ../../base
+images:
+  - name: hub.kapowai.com.ua/kyc-liveness-web
+    newTag: "25.08.01"
+configMapGenerator:
+  - name: kyc-liveness-web-config
+    behavior: merge
+    literals:
+      - APP_ENV=test
+patches:
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "50m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"

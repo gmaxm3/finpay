@@ -1,0 +1,24 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    deployment:
+      podLabels:
+        # Required for NetworkPolicy ingress rules in CDE/DMZ services.
+        # commonLabels in kustomize injects these labels into all matchLabels,
+        # including NetworkPolicy podSelectors that reference Traefik.
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    service:
+      spec:
+        externalTrafficPolicy: Local
+    additionalArguments:
+      # Required for cde-proxy ExternalName service (DMZ→CDE routing).
+      - "--providers.kubernetesingress.allowExternalNameServices=true"
+      # DMZ→CDE internal traffic: CDE Traefik uses self-signed cert.
+      - "--serversTransport.insecureSkipVerify=true"
+      # Trust nginx reverse proxy (172.29.241.0/24) to forward real client IP.
+      - "--entrypoints.websecure.forwardedHeaders.trustedIPs=172.29.241.0/24"

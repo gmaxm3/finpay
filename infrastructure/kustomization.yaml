@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Точка входу для всієї infrastructure
+# Застосовувати компоненти по порядку (залежності між ними):
+#
+# Порядок встановлення:
+#   1. kubectl apply -k infrastructure/cert-manager/
+#      kubectl -n cert-manager rollout status deploy --timeout=120s
+#
+#   2. kubectl apply -k infrastructure/secrets/
+#      # Зберегти backup: kubectl get secret sealed-secrets-key -n kube-system -o yaml
+#
+#   3. kubectl apply -k infrastructure/monitoring/
+#
+#   4. kubectl apply -k infrastructure/reloader/
+#      # Або застосувати applicationset.yaml через ArgoCD
+#
+# НЕ застосовувати весь infrastructure/ одразу через залежності між компонентами
+
+components:
+  # Коментар: використовувати окремо через kubectl apply -k
+  - cert-manager
+  - secrets
+  - monitoring
+  - reloader

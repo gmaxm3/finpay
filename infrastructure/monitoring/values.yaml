@@ -1,0 +1,144 @@
+# kube-prometheus-stack Helm values
+# Документація: https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+#
+# Встановлення:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install kube-prometheus-stack \
+#     prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring --create-namespace \
+#     --version 58.3.1 \
+#     -f infrastructure/monitoring/values.yaml
+#
+# Multi-cluster: кожен кластер (dev/test/stage/prod-dmz/prod-cde) має
+# свій Prometheus Agent який remote_write метрики на центральний Prometheus
+# на observability node. Це дає єдину точку для Grafana та Alertmanager.
+
+# Prometheus
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    retentionSize: "40GB"
+
+    # Збирати метрики з усіх кластерів через remote_write або federation
+    # Для multi-cluster: кожен кластер має свій Prometheus, центральний агрегує
+    externalLabels:
+      cluster: observability
+      environment: all
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # PCI-DSS: resource limits для Prometheus (захист від OOM)
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 8Gi
+
+    # Додаткові scrape configs для кастомних сервісів
+    additionalScrapeConfigs:
+      - job_name: finpaybank-services
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            target_label: service
+
+# Grafana
+grafana:
+  enabled: true
+  adminPassword: "REPLACE_WITH_SECRET"  # SECRET_MANAGER
+
+  persistence:
+    enabled: true
+    size: 10Gi
+
+  # Dashboards провіжнення
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: finpaybank
+          folder: FinPayBank
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards/finpaybank
+
+  # Datasources
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-stack:3100
+      access: proxy
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# Alertmanager
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 5Gi
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# node-exporter — метрики нод
+nodeExporter:
+  enabled: true
+
+# kube-state-metrics — метрики K8s об'єктів
+kubeStateMetrics:
+  enabled: true
+
+# Вбудовані правила алертингу
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    general: true
+    k8s: true
+    kubeApiserver: true
+    kubeApiserverAvailability: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubelet: true
+    kubeScheduler: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    time: true

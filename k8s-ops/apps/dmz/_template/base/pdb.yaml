@@ -1,0 +1,16 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  # Мінімум 1 под завжди доступний під час node drains / rolling updates
+  # Для prod рекомендується minAvailable: "50%"
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+      zone: dmz

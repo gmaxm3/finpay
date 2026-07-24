@@ -1,0 +1,221 @@
+---
+# PrometheusRules — кастомні алерти для finpaybank
+# PCI-DSS: обов'язковий моніторинг security events
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: finpaybank-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    # Prometheus підхоплює rules за цим label
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+
+    # =========================================================
+    # PCI-DSS Security alerts
+    # =========================================================
+    - name: pci-dss-security
+      interval: 30s
+      rules:
+        # Контейнер запущений від root — порушення PCI-DSS
+        - alert: ContainerRunningAsRoot
+          expr: |
+            kube_pod_container_info{namespace=~".*-cde|.*-dmz|prod"}
+            * on (pod, namespace) group_left()
+            (kube_pod_container_status_running == 1)
+            and on (pod, namespace)
+            (kube_pod_spec_containers_security_context_run_as_user == 0
+            or kube_pod_spec_containers_security_context_run_as_non_root == 0)
+          for: 1m
+          labels:
+            severity: critical
+            category: pci-dss
+          annotations:
+            summary: "Контейнер запущений від root"
+            description: "Pod {{ $labels.pod }} в namespace {{ $labels.namespace }} запущений від root. Порушення PCI-DSS."
+
+        # CDE pod отримав network з'єднання назовні (internet egress)
+        - alert: CDEUnexpectedEgressTraffic
+          expr: |
+            increase(container_network_transmit_bytes_total{
+              namespace=~".*-cde|prod",
+              pod!~".*rabbitmq.*|.*redis.*"
+            }[5m]) > 1000000
+          for: 2m
+          labels:
+            severity: critical
+            category: pci-dss
+          annotations:
+            summary: "Підозрілий egress трафік з CDE namespace"
+            description: "Pod {{ $labels.pod }} в CDE namespace {{ $labels.namespace }} передає великий об'єм трафіку. Перевірте NetworkPolicy."
+
+        # Спроба привілейованого контейнера
+        - alert: PrivilegedContainerDetected
+          expr: |
+            kube_pod_container_status_running{namespace=~".*-cde|.*-dmz|prod"} == 1
+            and on (pod, namespace, container)
+            kube_pod_container_info * on (pod, namespace)
+            group_left() (kube_pod_spec_containers_security_context_privileged == 1)
+          for: 0m
+          labels:
+            severity: critical
+            category: pci-dss
+          annotations:
+            summary: "Привілейований контейнер виявлено"
+            description: "Контейнер {{ $labels.container }} в pod {{ $labels.pod }} запущений в privileged mode."
+
+        # Надто багато failed запитів — можлива атака
+        - alert: HighErrorRateDMZ
+          expr: |
+            sum(rate(http_requests_total{
+              namespace=~".*-dmz|prod",
+              status=~"5.."
+            }[5m])) by (namespace, service) /
+            sum(rate(http_requests_total{
+              namespace=~".*-dmz|prod"
+            }[5m])) by (namespace, service) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            category: availability
+          annotations:
+            summary: "Висока кількість помилок в DMZ"
+            description: "Сервіс {{ $labels.service }} в {{ $labels.namespace }}: error rate > 10% протягом 5 хв."
+
+    # =========================================================
+    # Kubernetes infrastructure alerts
+    # =========================================================
+    - name: k8s-infrastructure
+      rules:
+        # Pod в CrashLoopBackOff
+        - alert: PodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace=~".*-cde|.*-dmz|prod"
+            }[15m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod перезапускається"
+            description: "Pod {{ $labels.pod }} в {{ $labels.namespace }} перезапустився більше 3 разів за 15 хвилин."
+
+        # Pod не готовий тривалий час
+        - alert: PodNotReady
+          expr: |
+            kube_pod_status_ready{
+              condition="false",
+              namespace=~".*-cde|.*-dmz|prod"
+            } == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod не готовий"
+            description: "Pod {{ $labels.pod }} в {{ $labels.namespace }} не готовий більше 10 хвилин."
+
+        # Deployment не має жодного ready pod
+        - alert: DeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace=~".*-cde|.*-dmz|prod"
+            } == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Deployment недоступний"
+            description: "Deployment {{ $labels.deployment }} в {{ $labels.namespace }} не має жодного доступного pod."
+
+        # PVC майже заповнений
+        - alert: PVCAlmostFull
+          expr: |
+            (
+              kubelet_volume_stats_used_bytes /
+              kubelet_volume_stats_capacity_bytes
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC майже заповнений"
+            description: "PVC {{ $labels.persistentvolumeclaim }} в {{ $labels.namespace }}: {{ $value | humanizePercentage }} використано."
+
+    # =========================================================
+    # StatefulSet alerts (Redis, RabbitMQ)
+    # =========================================================
+    - name: statefulsets
+      rules:
+        - alert: StatefulSetReplicasMismatch
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace=~".*-cde|prod"
+            } != kube_statefulset_status_replicas{
+              namespace=~".*-cde|prod"
+            }
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "StatefulSet replicas mismatch"
+            description: "StatefulSet {{ $labels.statefulset }} в {{ $labels.namespace }}: {{ $value }} ready з {{ $labels.replicas }} expected."
+
+        # RabbitMQ черга переповнена
+        - alert: RabbitMQQueueDepthHigh
+          expr: rabbitmq_queue_messages > 10000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "RabbitMQ черга переповнена"
+            description: "Черга {{ $labels.queue }} в vhost {{ $labels.vhost }}: {{ $value }} повідомлень."
+
+        # Redis пам'ять > 80%
+        - alert: RedisMemoryHigh
+          expr: |
+            redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Redis використовує більше 80% пам'яті"
+            description: "Redis {{ $labels.instance }}: {{ $value | humanizePercentage }} пам'яті використано."
+
+    # =========================================================
+    # Node alerts
+    # =========================================================
+    - name: nodes
+      rules:
+        - alert: NodeHighCPU
+          expr: |
+            (1 - avg by(node) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Нода {{ $labels.node }} — висока завантаженість CPU"
+            description: "CPU використання > 85% протягом 10 хвилин."
+
+        - alert: NodeHighMemory
+          expr: |
+            (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.90
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Нода {{ $labels.instance }} — критично мало RAM"
+            description: "Доступно менше 10% оперативної пам'яті."
+
+        - alert: NodeDiskPressure
+          expr: |
+            (node_filesystem_avail_bytes{mountpoint="/"} /
+            node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Мало місця на диску"
+            description: "Нода {{ $labels.instance }}: залишилось {{ $value | humanizePercentage }} місця на /."

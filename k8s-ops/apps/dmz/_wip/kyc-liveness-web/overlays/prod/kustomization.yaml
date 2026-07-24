@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-dmz
+resources:
+  - ../../base
+images:
+  - name: hub.kapowai.com.ua/kyc-liveness-web
+    newTag: "25.08.01"
+configMapGenerator:
+  - name: kyc-liveness-web-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+      - RABBITMQ_HOST=rabbitmq.prod-cde.svc.cluster.local

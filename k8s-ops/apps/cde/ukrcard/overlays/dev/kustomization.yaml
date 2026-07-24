@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev-cde
+resources:
+  - ../../base
+  - secret-ukrcard.yaml
+  - secret-ukrcard-certs.yaml
+images:
+  - name: finpaybank.kapowai.com.ua/ukrcard
+    newTag: "26.4.1"
+configMapGenerator:
+- name: ukrcard-config
+  behavior: merge
+  literals:
+  - APP_ENV=dev

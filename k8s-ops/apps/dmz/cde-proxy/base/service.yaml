@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cde-traefik
+  labels:
+    app.kubernetes.io/name: cde-proxy
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  type: ClusterIP
+  ports:
+    - port: 30443
+      protocol: TCP
+      targetPort: 30443
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: cde-traefik
+  labels:
+    app.kubernetes.io/name: cde-proxy
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+    kubernetes.io/service-name: cde-traefik
+addressType: IPv4
+ports:
+  - port: 30443
+    protocol: TCP
+endpoints:
+  - addresses:
+      - REPLACE_CDE_NODE_IP

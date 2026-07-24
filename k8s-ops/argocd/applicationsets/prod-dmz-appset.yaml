@@ -1,0 +1,91 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: prod-dmz-appset
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: prod
+    zone: dmz
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+
+  generators:
+    - git:
+        repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+        revision: master
+        # prod-dmz: тільки DMZ сервіси
+        directories:
+          - path: "k8s-ops/apps/dmz/*"
+          - path: "k8s-ops/apps/dmz/_template"
+            exclude: true
+          - path: "k8s-ops/apps/dmz/_wip"
+            exclude: true
+        values:
+          zone: dmz
+          serviceName: "{{.path.basename}}"
+
+  template:
+    metadata:
+      name: "{{.path.basename}}-dmz-prod"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: finpaybank
+        app.kubernetes.io/name: "{{.path.basename}}"
+        environment: prod
+        zone: dmz
+      annotations:
+        # Prod: алерти на синк failures та successes
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: finpaybank-alerts
+        notifications.argoproj.io/subscribe.on-sync-failed.pagerduty: ""
+        notifications.argoproj.io/subscribe.on-sync-succeeded.slack: finpaybank-alerts
+        # Health degraded — критичний алерт
+        notifications.argoproj.io/subscribe.on-health-degraded.pagerduty: ""
+        kargo.akuity.io/authorized-stage: "{{.path.basename}}:prod"
+
+    spec:
+      project: prod-project
+
+      source:
+        repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+        targetRevision: master
+        path: "{{.path.path}}/overlays/prod"
+
+      destination:
+        server: https://10.201.97.10:6443
+        # prod-dmz кластер: namespace "prod-dmz"
+        namespace: prod-dmz
+
+      # PROD: НЕ automated sync — тільки manual через ArgoCD UI після Kargo approval
+      # Це критична вимога PCI-DSS: всі prod зміни мають human approval
+      syncPolicy:
+        automated: null  # НЕ автоматичний sync
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          # PruneLast: спочатку створити нові ресурси, потім видалити старі
+          - PruneLast=true
+          - ServerSideApply=true
+          # RespectIgnoreDifferences: не sync поля які в ignoreDifferences
+          - RespectIgnoreDifferences=true
+        # Без retry для prod — краще зупинитися і розібратися
+        retry:
+          limit: 1
+          backoff:
+            duration: 60s
+            factor: 1
+            maxDuration: 60s
+
+      # prod: ігноруємо replicas (HPA керує), annotations (monitoring додає)
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+            - /metadata/annotations
+        - group: ""
+          kind: Service
+          jsonPointers:
+            - /spec/clusterIP
+            - /spec/clusterIPs

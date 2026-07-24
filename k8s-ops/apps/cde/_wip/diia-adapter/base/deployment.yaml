@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diia-adapter
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: diia-adapter
+    app.kubernetes.io/component: esb
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: diia-adapter
+      zone: cde
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: diia-adapter
+        app.kubernetes.io/component: esb
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    spec:
+      serviceAccountName: diia-adapter
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: dedicated
+                    operator: NotIn
+                    values: [data]
+      imagePullSecrets:
+        - name: registry-credentials
+      containers:
+        - name: diia-adapter
+          image: hub.kapowai.com.ua/diia-adapter:26.7.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: >-
+                -Dlogging.config=classpath:logback.xml
+                -Dlogging.file.name=/app/var/log/diia-adapter.log
+          envFrom:
+            - configMapRef:
+                name: diia-adapter-config
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /app/var/log
+            - name: app-config
+              mountPath: /app/config
+              readOnly: true
+            - name: keys
+              mountPath: /app/Key-6.dat
+              subPath: Key-6.dat
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: app-config
+          secret:
+            secretName: diia-adapter-app-config
+        - name: keys
+          secret:
+            secretName: diia-adapter-keys
+            items:
+              - key: Key-6.dat
+                path: Key-6.dat

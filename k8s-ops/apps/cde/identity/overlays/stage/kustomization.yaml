@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: stage-cde
+resources:
+  - ../../base
+images:
+  - name: hub.kapowai.com.ua/identity
+    newTag: 26.5.2
+configMapGenerator:
+  - name: identity-config
+    behavior: merge
+    literals:
+      - APP_ENV=stage
+      - OTP_BACKEND='totp'
+      - OTP_DIGITS='6'
+      - OTP_PERIOD='120'
+      - TRUSTED_DEVICES_CONFIRM=False
+
+patches:
+  - target:
+      kind: Ingress
+      name: identity
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: online-stage.finpay.com.ua

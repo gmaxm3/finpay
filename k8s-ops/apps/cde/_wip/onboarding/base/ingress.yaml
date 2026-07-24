@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: onboarding
+  labels:
+    app.kubernetes.io/name: onboarding
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+    ingress-type: external
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: REPLACE_ONLINE_HOST
+      http:
+        paths:
+          - path: /api/v1/onboarding
+            pathType: Prefix
+            backend:
+              service:
+                name: onboarding
+                port:
+                  number: 8000
+          - path: /api/v1/onboarding/_health
+            pathType: Prefix
+            backend:
+              service:
+                name: onboarding
+                port:
+                  number: 8000

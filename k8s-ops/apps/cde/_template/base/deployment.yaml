@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: SERVICE_NAME
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+      zone: cde
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: SERVICE_NAME
+        app.kubernetes.io/component: SERVICE_NAME
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    spec:
+      serviceAccountName: SERVICE_NAME
+      automountServiceAccountToken: false
+
+      # PCI-DSS: Pod SecurityContext
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      imagePullSecrets:
+        - name: registry-credentials
+
+      containers:
+        - name: SERVICE_NAME
+          image: hub.kapowai.com.ua/SERVICE_NAME:latest
+
+          # PCI-DSS: Container SecurityContext (суворіший для CDE)
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+
+          ports:
+            - name: http
+              containerPort: SERVICE_PORT
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: SERVICE_NAME-config
+            - secretRef:
+                name: shared-secrets  # DEFAULT_URL, REDIS_URL, RABBITMQ_URL, SECRET_KEY, DATABASE_URL
+          # Переозначення DATABASE_URL (якщо сервіс використовує окрему БД):
+          # env:
+          #   - name: DATABASE_URL
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: SERVICE_NAME-credentials
+          #         key: DATABASE_URL
+
+          # CDE сервіси зазвичай більш resource-intensive (ESB логіка)
+          resources:
+            requests:
+              cpu: "50m"      # ЗАМІНИТИ на реальні значення
+              memory: "128Mi"  # ЗАМІНИТИ на реальні значення
+            limits:
+              cpu: "1000m"     # ЗАМІНИТИ на реальні значення
+              memory: "1Gi"    # ЗАМІНИТИ на реальні значення
+
+#           startupProbe:
+#             httpGet:
+#               path: /health
+#               port: SERVICE_PORT
+#             failureThreshold: 30
+#             periodSeconds: 10
+#           livenessProbe:
+#             httpGet:
+#               path: /health
+#               port: SERVICE_PORT
+#             initialDelaySeconds: 30
+#             periodSeconds: 30
+#             failureThreshold: 3
+#           readinessProbe:
+#             httpGet:
+#               path: /ready
+#               port: SERVICE_PORT
+#             initialDelaySeconds: 10
+#             periodSeconds: 10
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      # CDE: планувальник розміщує поди на app nodes (не data node)
+      # data node має taint dedicated=data:NoSchedule
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: dedicated
+                    operator: NotIn
+                    values: [data]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: SERVICE_NAME
+                topologyKey: kubernetes.io/hostname

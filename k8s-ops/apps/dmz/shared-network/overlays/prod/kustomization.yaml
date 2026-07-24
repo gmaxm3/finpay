@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod-dmz
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: NetworkPolicy
+      name: dmz-common-egress
+    patch: |-
+      - op: add
+        path: /spec/egress/-
+        value:
+          to:
+            - ipBlock:
+                cidr: 10.201.98.10/32
+          ports:
+            - port: 30443
+              protocol: TCP

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: transactions
+  labels:
+    app.kubernetes.io/name: transactions
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: transactions
+    zone: cde
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

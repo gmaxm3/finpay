@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: test-appset
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: test
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - zone: dmz
+                  namespace: test-dmz
+                  server: "https://10.201.33.10:6443"
+                - zone: cde
+                  namespace: test-cde
+                  server: "https://10.201.34.10:6443"
+          - git:
+              repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+              revision: master
+              directories:
+                # Шукаємо сервіси в корені зони та окремо в папці _wip
+                - path: "k8s-ops/apps/{{.zone}}/*"
+                - path: "k8s-ops/apps/{{.zone}}/_wip/*"
+                # Виключаємо службові папки, щоб з них не створювалися Application
+                - path: "k8s-ops/apps/{{.zone}}/_template"
+                  exclude: true
+                - path: "k8s-ops/apps/{{.zone}}/_wip/"
+                  exclude: true
+
+  template:
+    metadata:
+      name: "{{.path.basename}}-{{.zone}}-test"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: finpaybank
+        app.kubernetes.io/name: "{{.path.basename}}"
+        environment: test
+        zone: "{{.zone}}"
+      annotations:
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: finpaybank-alerts
+        kargo.akuity.io/authorized-stage: "{{.path.basename}}:test"
+    spec:
+      project: test-project
+      source:
+        repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+        targetRevision: master
+        path: "{{.path.path}}/overlays/test"
+      destination:
+        server: "{{.server}}"
+        namespace: "{{.namespace}}"
+      syncPolicy:
+        automated: null # Якщо потрібен автодеплой при появі в Git, замініть на `automated: {}`
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas

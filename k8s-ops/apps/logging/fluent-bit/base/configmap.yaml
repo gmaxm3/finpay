@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: logging
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush                     3
+        Daemon                    Off
+        Log_Level                 info
+        HTTP_Server               On
+        HTTP_Listen               0.0.0.0
+        HTTP_Port                 2020
+        # Filesystem buffer — зберігає події якщо ES недоступний
+        storage.path              /var/fluentbit/buf
+        storage.sync              normal
+        storage.checksum          off
+        storage.total_limit_size  5G
+        Parsers_File              parsers.conf
+
+    [INPUT]
+        Name              tail
+        Tag               kube.*
+        Path              /var/log/containers/*.log
+        # Виключаємо власні логи Fluent Bit
+        Exclude_Path      *_logging_*.log
+        Parser            cri
+        # Position DB — запам'ятовує де зупинились (виживає після рестарту)
+        DB                /var/fluentbit/pos/flb.db
+        Mem_Buf_Limit     10MB
+        Skip_Long_Lines   On
+        Refresh_Interval  5
+        # Filesystem storage для цього input
+        storage.type      filesystem
+
+    [FILTER]
+        Name                  multiline
+        Match                 kube.*
+        multiline.key_content log
+        multiline.parser      python-multiline
+
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        Kube_URL            https://kubernetes.default.svc:443
+        Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+        # Merge JSON log fields into root — поля service, level, username і т.д. на верхньому рівні
+        Merge_Log           On
+        Keep_Log            Off
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude Off
+        # Не додаємо labels/annotations — зменшує розмір документа
+        Labels              Off
+        Annotations         Off
+
+    [FILTER]
+        Name    grep
+        Match   kube.*
+        Exclude $kubernetes['namespace_name'] ^(kube-system|kube-public)$
+
+    [FILTER]
+        Name    record_modifier
+        Match   kube.*
+        Record  environment ${ENVIRONMENT}
+
+    [FILTER]
+        Name    modify
+        Match   kube.*
+        # log → message (ELK standard field name)
+        Rename  log message
+        # time — дублює @timestamp
+        Remove  time
+
+    [OUTPUT]
+        Name                          es
+        Match                         kube.*
+        Host                          ${ES_HOST}
+        Port                          ${ES_PORT}
+        HTTP_User                     ${ES_USERNAME}
+        HTTP_Passwd                   ${ES_PASSWORD}
+        # Logstash_Format: index = logs-dev-YYYY.MM.dd / logs-test-YYYY.MM.dd
+        Logstash_Format               On
+        Logstash_Prefix               logs-${ENVIRONMENT}
+        Logstash_DateFormat           %Y.%m.%d
+        Time_Key                      @timestamp
+        Replace_Dots                  On
+        # Retry forever — не губимо логи
+        Retry_Limit                   False
+        # Filesystem buffer для output
+        storage.total_limit_size      5G
+        # Suppress warnings for fields ignored by ES
+        Suppress_Type_Name            On
+
+  parsers.conf: |
+    # Multiline parser для Python/uvicorn трейсбеків
+    # Start: рядок починається з [YYYY (uvicorn), { (JSON), IP (access log)
+    # Continuation: Traceback, File "...", exception class, indented lines
+    [MULTILINE_PARSER]
+        name              python-multiline
+        type              regex
+        flush_timeout     2000
+        rule "start_state" "/^(\[\d{4}-\d{2}-\d{2}|\{\"?[a-zA-Z]|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}[ :])/" "cont"
+        rule "cont"        "/^(?!\[\d{4}-\d{2}-\d{2}|\{\"?[a-zA-Z]|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}[ :])/" "cont"
+
+    # CRI формат (containerd / k3s)
+    [PARSER]
+        Name        cri
+        Format      regex
+        Regex       ^(?<time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+[+-]\d{2}:\d{2}) (?<stream>stdout|stderr) [^ ]* (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L%z
+        Time_Keep   On
+
+    # Nginx/Traefik access log
+    [PARSER]
+        Name        access_log
+        Format      regex
+        Regex       ^(?<client_ip>\d+\.\d+\.\d+\.\d+) \[(?<time>[^\]]+)\] "(?<method>\S+) (?<path>\S+)[^"]*" (?<status>\d+) (?<bytes>\d+) "[^"]*" "(?<user_agent>[^"]*)"
+        Time_Key    time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+        Time_Keep   On

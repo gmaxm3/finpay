@@ -1,0 +1,8 @@
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: cde-traefik
+endpoints:
+  - addresses:
+      - 10.201.66.10
+    conditions: {}

@@ -1,0 +1,258 @@
+---
+# =============================================================================
+# Stage: dev
+# Тригер: нова версія в warehouse → автоматична promotion
+# =============================================================================
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: qr
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: qr
+      # direct: true — бере freight прямо з warehouse (не чекає upstream stage)
+      sources:
+        direct: true
+
+  promotionTemplate:
+    spec:
+      steps:
+        # 1. Клонуємо репозиторій
+        - uses: git-clone
+          as: clone
+          config:
+            repoURL: https://bitbucket.org/Kapowai/finpaybank-gitops.git
+            checkout:
+              - branch: master
+                path: ./repo
+
+        # 2. Оновлюємо image tag в overlay/dev через kustomize
+        - uses: kustomize-set-image
+          as: update-image
+          config:
+            path: ./repo/k8s-ops/apps/cde/qr/overlays/dev
+            images:
+              - image: finpaybank.kapowai.com.ua/qr
+                tag: ${{ imageFrom("finpaybank.kapowai.com.ua/finpay-qr").Tag }}
+
+        # 3. Комітимо зміну з інформативним повідомленням
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: "chore(dev): update qr image\n\n${{ outputs['update-image'].commitMessage }}"
+
+        # 4. Пушимо в master
+        - uses: git-push
+          config:
+            path: ./repo
+            targetBranch: master
+
+        # 5. Тригеримо ArgoCD sync для dev Application
+        - uses: argocd-update
+          config:
+            apps:
+              - name: qr-cde-dev
+                sources:
+                  - repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+                    desiredRevision: ${{ outputs.commit.commit }}
+
+---
+# =============================================================================
+# Stage: test
+# Тригер: freight що успішно пройшов dev → автоматична promotion
+# =============================================================================
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: test
+  namespace: qr
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: qr
+      sources:
+        # Бере тільки freight що вже верифікований в dev stage
+        stages: [dev]
+
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          as: clone
+          config:
+            repoURL: https://bitbucket.org/Kapowai/finpaybank-gitops.git
+            checkout:
+              - branch: master
+                path: ./repo
+
+        - uses: kustomize-set-image
+          as: update-image
+          config:
+            path: ./repo/k8s-ops/apps/cde/qr/overlays/test
+            images:
+              - image: finpaybank.kapowai.com.ua/qr
+                tag: ${{ imageFrom("finpaybank.kapowai.com.ua/finpay-qr").Tag }}
+
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: "chore(test): update qr image\n\n${{ outputs['update-image'].commitMessage }}"
+
+        - uses: git-push
+          config:
+            path: ./repo
+            targetBranch: master
+
+        - uses: argocd-update
+          config:
+            apps:
+              - name: qr-cde-test
+                sources:
+                  - repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+                    desiredRevision: ${{ outputs.commit.commit }}
+
+---
+# =============================================================================
+# Stage: stage
+# Тригер: manual approval від release-manager
+# Sync в ArgoCD: також manual (stage-appset має automated: null)
+# =============================================================================
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: stage
+  namespace: qr
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: qr
+      sources:
+        # Бере freight що пройшов test
+        stages: [test]
+
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          as: clone
+          config:
+            repoURL: https://bitbucket.org/Kapowai/finpaybank-gitops.git
+            checkout:
+              - branch: master
+                path: ./repo
+
+        - uses: kustomize-set-image
+          as: update-image
+          config:
+            path: ./repo/k8s-ops/apps/cde/qr/overlays/stage
+            images:
+              - image: finpaybank.kapowai.com.ua/qr
+                tag: ${{ imageFrom("finpaybank.kapowai.com.ua/finpay-qr").Tag }}
+
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: "chore(stage): update qr image\n\n${{ outputs['update-image'].commitMessage }}"
+
+        - uses: git-push
+          config:
+            path: ./repo
+            targetBranch: master
+
+        # stage-appset: automated: null → ArgoCD показує OutOfSync, але НЕ syncs автоматично
+        # Release-manager бачить зміну в UI та натискає Sync вручну
+        - uses: argocd-update
+          config:
+            apps:
+              - name: qr-cde-stage
+                sources:
+                  - repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+                    desiredRevision: ${{ outputs.commit.commit }}
+
+---
+# =============================================================================
+# Stage: prod
+# Тригер: manual approval від prod-operator
+# Image: digest-based (immutable reference, PCI-DSS вимога)
+# ArgoCD sync: тільки manual через UI після approval
+#
+# Для payment/cards сервісів — потрібно 2 approvals:
+# Налаштувати в ClusterRoleBinding або через Kargo approval policies
+# =============================================================================
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: qr
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: qr
+      sources:
+        # Бере freight що пройшов stage + отримав manual approval
+        stages: [stage]
+
+  promotionTemplate:
+    spec:
+      steps:
+        - uses: git-clone
+          as: clone
+          config:
+            repoURL: https://bitbucket.org/Kapowai/finpaybank-gitops.git
+            checkout:
+              - branch: master
+                path: ./repo
+
+        # Prod: digest замість тегу — immutable, PCI-DSS вимога
+        # sha256:abc123... гарантує що деплоїться саме той image що пройшов approval
+        - uses: kustomize-set-image
+          as: update-image
+          config:
+            path: ./repo/k8s-ops/apps/cde/qr/overlays/prod
+            images:
+              - image: finpaybank.kapowai.com.ua/qr
+                tag: ${{ imageFrom("finpaybank.kapowai.com.ua/finpay-qr").Tag }}
+
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: "chore(prod): update qr image [PROD RELEASE]\n\n${{ outputs['update-image'].commitMessage }}"
+
+        - uses: git-push
+          config:
+            path: ./repo
+            targetBranch: master
+
+        # prod-dmz-appset / prod-cde-appset: automated: null
+        # Prod-operator бачить OutOfSync → sync вручну через ArgoCD UI
+        # Це свідомий вибір: людина підтверджує prod deploy двічі
+        # (1 — Kargo approval, 2 — ArgoCD manual sync)
+        - uses: argocd-update
+          config:
+            apps:
+              - name: qr-cde-prod
+                sources:
+                  - repoURL: git@bitbucket.org:Kapowai/finpaybank-gitops.git
+                    desiredRevision: ${{ outputs.commit.commit }}

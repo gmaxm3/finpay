@@ -1,0 +1,51 @@
+---
+# ServiceAccount — окремий для кожного сервісу (PCI-DSS)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+# automountServiceAccountToken вимкнено в Deployment spec
+# (не тут, бо Deployment override має пріоритет)
+automountServiceAccountToken: false
+---
+# Role з мінімальними правами
+# Додавати права тільки якщо сервіс реально потребує доступу до K8s API
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+rules:
+  # Мінімальний приклад: доступ до власного ConfigMap
+  # Видалити або доповнити відповідно до реальних потреб сервісу
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["SERVICE_NAME-config"]
+    verbs: ["get"]
+  # Більшість сервісів не потребують доступу до K8s API взагалі
+  # Якщо не потрібно — залишити rules: [] або видалити Role/RoleBinding
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: SERVICE_NAME
+subjects:
+  - kind: ServiceAccount
+    name: SERVICE_NAME
+    # namespace встановлюється автоматично kustomize

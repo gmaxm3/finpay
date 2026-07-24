@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: logging-project
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "FinPayBank logging infrastructure (Filebeat DaemonSet, namespace: logging)"
+
+  sourceRepos:
+    - git@bitbucket.org:Kapowai/finpaybank-gitops.git
+
+  destinations:
+    - server: https://DEV_NODE_IP:6443
+      namespace: logging
+    - server: https://10.201.34.10:6443
+      namespace: logging
+    - server: https://10.201.33.10:6443
+      namespace: logging
+    - server: https://10.201.65.10:6443
+      namespace: logging
+    - server: https://10.201.66.10:6443
+      namespace: logging
+    - server: https://10.201.97.10:6443
+      namespace: logging
+    - server: https://10.201.98.10:6443
+      namespace: logging
+
+  # Filebeat потребує ClusterRole + ClusterRoleBinding (читати pod metadata з усіх ns)
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: DaemonSet
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+
+  roles:
+    - name: logging-dev-operator
+      description: "Sync logging apps тільки на dev/test кластерах"
+      policies:
+        - p, proj:logging-project:logging-dev-operator, applications, sync, logging-project/filebeat-dev, allow
+        - p, proj:logging-project:logging-dev-operator, applications, sync, logging-project/filebeat-test, allow
+        - p, proj:logging-project:logging-dev-operator, applications, get, logging-project/*, allow
+      groups:
+        - dev-team
+
+    - name: logging-prod-operator
+      description: "Sync logging apps на всіх кластерах включно з prod"
+      policies:
+        - p, proj:logging-project:logging-prod-operator, applications, sync, logging-project/*, allow
+        - p, proj:logging-project:logging-prod-operator, applications, get, logging-project/*, allow
+      groups:
+        - prod-operators
+
+  orphanedResources:
+    warn: true

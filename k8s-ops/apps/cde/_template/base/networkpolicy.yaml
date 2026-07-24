@@ -1,0 +1,94 @@
+---
+# NetworkPolicy для CDE сервісу
+# PCI-DSS КРИТИЧНО: NO internet egress, доступ тільки від авторизованих сервісів
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+      zone: cde
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Якщо сервіс має ingress.yaml (HTTP endpoint через CDE Traefik) — розкоментувати:
+    # - from:
+    #     - namespaceSelector:
+    #         matchLabels:
+    #           kubernetes.io/metadata.name: kube-system
+    #       podSelector:
+    #         matchLabels:
+    #           app.kubernetes.io/name: traefik
+    #   ports:
+    #     - port: SERVICE_PORT
+    #       protocol: TCP
+
+    # Дозволяємо від інших CDE сервісів (внутрішньо в CDE)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: SERVICE_PORT
+          protocol: TCP
+
+  egress:
+    # DNS — обов'язково
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+    # RabbitMQ (в CDE, той самий namespace або cross-namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: rabbitmq
+      ports:
+        - port: 5672
+          protocol: TCP
+
+    # Redis (в CDE)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+
+    # PostgreSQL — bare metal, поза кластером
+    # ЗАМІНИТИ на реальний IP range бази даних
+    - to:
+        - ipBlock:
+            cidr: 10.201.35.10/32
+      ports:
+        - port: 5432
+          protocol: TCP
+    - to:
+        - ipBlock:
+            cidr: POSTGRES_REPLICA_IP/32
+      ports:
+        - port: 5432
+          protocol: TCP
+
+    # ПЦ (платіжний центр) та АБС (core banking) — через VPN/MPLS
+    # ЗАМІНИТИ на реальний IP range ПЦ та АБС
+    # - to:
+    #     - ipBlock:
+    #         cidr: PC_ABS_IP_RANGE/24
+    #   ports:
+    #     - port: PC_PORT
+    #       protocol: TCP
+
+    # КРИТИЧНО: NO internet egress для CDE
+    # Не додавати 0.0.0.0/0 або будь-який зовнішній IP без явного обґрунтування

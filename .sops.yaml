@@ -1,0 +1,42 @@
+---
+# SOPS + age configuration for FinPayBank GitOps
+#
+# SETUP:
+#   1. Run: infrastructure/secrets/bootstrap-secrets.sh
+#   2. Replace age10xmnsfwr9n9my3flngcpm9dsvd0ye3rkguqr40y64fx9adadf34qtt8glg and age1248hr3m37cghxalp8maamcec4qyhx2vq9lqxmw4fsv6dfqzkys6qcnrvzq below
+#   3. Commit this file (contains only public keys — safe to store in Git)
+#
+# KEY STORAGE:
+#   - Operator private key:  ~/.config/sops/age/keys.txt  →  also in 1Password / password manager
+#   - ArgoCD private key:    kubectl secret -n argocd sops-age-key  →  backup in 1Password
+#
+# USAGE:
+#   sops -e -i secret.yaml          # encrypt in-place
+#   sops -d secret.yaml             # decrypt to stdout
+#   sops secret.yaml                # edit (opens $EDITOR)
+#   sops updatekeys secret.yaml     # re-encrypt with updated keys in .sops.yaml
+
+creation_rules:
+  # Prod overlays — operator + ArgoCD
+  - path_regex: .*/overlays/prod/secret.*\.yaml$
+    age: >-
+      age10xmnsfwr9n9my3flngcpm9dsvd0ye3rkguqr40y64fx9adadf34qtt8glg,
+      age1248hr3m37cghxalp8maamcec4qyhx2vq9lqxmw4fsv6dfqzkys6qcnrvzq
+
+  # Stage overlays — operator + ArgoCD
+  - path_regex: .*/overlays/stage/secret.*\.yaml$
+    age: >-
+      age10xmnsfwr9n9my3flngcpm9dsvd0ye3rkguqr40y64fx9adadf34qtt8glg,
+      age1248hr3m37cghxalp8maamcec4qyhx2vq9lqxmw4fsv6dfqzkys6qcnrvzq
+
+  # Dev / test overlays — operator + ArgoCD
+  - path_regex: .*/overlays/(dev|test)/secret.*\.yaml$
+    age: >-
+      age10xmnsfwr9n9my3flngcpm9dsvd0ye3rkguqr40y64fx9adadf34qtt8glg,
+      age1248hr3m37cghxalp8maamcec4qyhx2vq9lqxmw4fsv6dfqzkys6qcnrvzq
+
+  # Infrastructure secrets (cert-manager, registry, etc.)
+  - path_regex: infrastructure/.*secret.*\.yaml$
+    age: >-
+      age10xmnsfwr9n9my3flngcpm9dsvd0ye3rkguqr40y64fx9adadf34qtt8glg,
+      age1248hr3m37cghxalp8maamcec4qyhx2vq9lqxmw4fsv6dfqzkys6qcnrvzq

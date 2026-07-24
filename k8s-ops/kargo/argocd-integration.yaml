@@ -1,0 +1,49 @@
+---
+# Kargo ArgoCD Integration
+# Цей файл описує Secret який ПОТРІБНО СТВОРИТИ ВРУЧНУ (НЕ комітити в Git)
+#
+# Виконати на management node:
+#
+#   # 1. Отримати ArgoCD token для Kargo
+#   argocd account generate-token --account kargo
+#
+#   # 2. Створити Secret в namespace kargo
+#   kubectl create secret generic argocd-token \
+#     --namespace kargo \
+#     --from-literal=token="ARGOCD_TOKEN_FROM_STEP_1"
+#
+#   # 3. Позначити Secret як Kargo ArgoCD secret
+#   kubectl label secret argocd-token \
+#     --namespace kargo \
+#     kargo.akuity.io/secret-type=argocd
+#
+# Також потрібно додати account "kargo" в argocd-cm:
+#   kubectl patch configmap argocd-cm -n argocd --patch '
+#   data:
+#     accounts.kargo: apiKey
+#     accounts.kargo.enabled: "true"
+#   '
+#
+# І дати права account kargo в argocd-rbac-cm:
+#   kubectl patch configmap argocd-rbac-cm -n argocd --patch '
+#   data:
+#     policy.csv: |
+#       p, role:kargo, applications, get, */*, allow
+#       p, role:kargo, applications, sync, */*, allow
+#       p, role:kargo, applications, update, */*, allow
+#       g, kargo, role:kargo
+#   '
+---
+# Kargo ConfigMap — вказує де знаходиться ArgoCD
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kargo-argocd-config
+  namespace: kargo
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+data:
+  # URL ArgoCD API server (internal, з management node)
+  argocd-url: "https://argocd-server.argocd.svc.cluster.local"
+  # Namespace де живе ArgoCD
+  argocd-namespace: "argocd"

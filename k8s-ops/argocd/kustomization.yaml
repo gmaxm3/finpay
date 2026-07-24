@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Застосовується одноразово на management node:
+#   kubectl apply -k k8s-ops/argocd/
+
+namespace: argocd
+
+resources:
+  # AppProjects
+  - projects/dev-project.yaml
+  - projects/test-project.yaml
+  - projects/stage-project.yaml
+  - projects/prod-dmz-project.yaml
+  - projects/prod-cde-project.yaml
+  # ApplicationSets
+  - applicationsets/dev-appset.yaml
+  - applicationsets/test-appset.yaml
+  - applicationsets/stage-appset.yaml
+  - applicationsets/prod-dmz-appset.yaml
+  - applicationsets/prod-cde-appset.yaml
+  # ConfigMap патчі
+  - argocd-cm-patch.yaml

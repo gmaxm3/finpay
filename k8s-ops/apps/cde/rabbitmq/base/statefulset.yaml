@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+      zone: cde
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rabbitmq
+        app.kubernetes.io/component: messaging
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+    spec:
+      serviceAccountName: rabbitmq
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999   # rabbitmq офіційний образ uid 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: registry-credentials
+      containers:
+        - name: rabbitmq
+          image: finpaybank.kapowai.com.ua/rabbitmq:4-management
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # RabbitMQ потребує запис в /var/lib/rabbitmq
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: amqp
+              containerPort: 5672
+              protocol: TCP
+            - name: management
+              containerPort: 15672
+              protocol: TCP
+          env:
+            # PCI-DSS: заборонений guest user — тільки кастомний admin
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  # SECRET_MANAGER: замінити на SealedSecret або SOPS
+                  name: rabbitmq-admin-credentials
+                  key: username
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-admin-credentials
+                  key: password
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: /
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+          envFrom:
+            - configMapRef:
+                name: rabbitmq-config
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            exec:
+              command: [rabbitmq-diagnostics, -q, ping]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command: [rabbitmq-diagnostics, -q, check_running]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 10
+          startupProbe:
+            exec:
+              command: [rabbitmq-diagnostics, -q, ping]
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+            - name: config
+              mountPath: /etc/rabbitmq/conf.d
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: rabbitmq-config-files
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          emptyDir: {}

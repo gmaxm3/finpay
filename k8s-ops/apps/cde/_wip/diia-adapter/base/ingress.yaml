@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: diia-adapter
+  labels:
+    app.kubernetes.io/name: diia-adapter
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+    ingress-type: external
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: diia-t.finpay.com.ua
+      http:
+        paths:
+          - path: /api/v1/diia
+            pathType: Prefix
+            backend:
+              service:
+                name: diia-adapter
+                port:
+                  number: 8000
+          - path: /webhooks/dia
+            pathType: Prefix
+            backend:
+              service:
+                name: diia-adapter
+                port:
+                  number: 8000
+          - path: /webhooks/dia-sign
+            pathType: Prefix
+            backend:
+              service:
+                name: diia-adapter
+                port:
+                  number: 8000

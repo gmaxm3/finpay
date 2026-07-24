@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# shared-secrets — централізований Secret для всіх CDE сервісів.
+#
+# Містить: DEFAULT_URL, REDIS_URL, RABBITMQ_URL, SECRET_KEY, DATABASE_URL
+#
+# Кожен overlay має своє зашифроване secret-shared.yaml (SOPS + age).
+# Редагування: sops k8s-ops/apps/cde/shared-secrets/overlays/{env}/secret-shared.yaml
+#
+# Сервіси підключають через:
+#   envFrom:
+#     - secretRef:
+#         name: shared-secrets
+#
+# Переозначення DATABASE_URL для конкретного сервісу:
+#   env:
+#     - name: DATABASE_URL
+#       valueFrom:
+#         secretKeyRef:
+#           name: {service}-credentials
+#           key: DATABASE_URL
+
+commonLabels:
+  app.kubernetes.io/part-of: finpaybank
+  zone: cde

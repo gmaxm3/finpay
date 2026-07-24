@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: test-cde
+
+resources:
+  - ../../base
+  - secret-kyc-livenes.yaml
+images:
+  - name: hub.kapowai.com.ua/kyc-liveness-service
+    newName: hub.kapowai.com.ua/kyc-liveness-service
+    newTag: "25.09.01"
+
+patches:
+  - target:
+      kind: Deployment
+      name: kyc-liveness-worker
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "50m"
+          limits:
+            cpu: "500m"

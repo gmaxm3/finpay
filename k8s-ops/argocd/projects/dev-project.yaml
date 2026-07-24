@@ -1,0 +1,102 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: dev-project
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    environment: dev
+  # Finalizer: забороняє видалення проекту поки є active Applications
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "FinPayBank dev environment (dev-dmz + dev-cde namespaces)"
+
+  # Дозволені джерела — тільки наш репозиторій
+  sourceRepos:
+    - git@bitbucket.org:Kapowai/finpaybank-gitops.git
+
+  # Дозволені цілі — тільки dev кластер, тільки dev namespace
+  destinations:
+    - server: https://DEV_NODE_IP:6443
+      namespace: dev-dmz
+    - server: https://DEV_NODE_IP:6443
+      namespace: dev-cde
+    # ArgoCD може створювати namespace
+    - server: https://DEV_NODE_IP:6443
+      namespace: argocd
+
+  # Дозволені cluster-scoped ресурси (тільки ті що реально потрібні)
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+
+  namespaceResourceWhitelist:
+    - group: "apps"
+      kind: Deployment
+    - group: "apps"
+      kind: StatefulSet
+    - group: "apps"
+      kind: ReplicaSet
+    - group: ""
+      kind: Pod
+    - group: "batch"
+      kind: Job
+    - group: "batch"
+      kind: CronJob
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: "networking.k8s.io"
+      kind: NetworkPolicy
+    - group: "networking.k8s.io"
+      kind: Ingress
+    - group: "traefik.io"
+      kind: IngressRoute
+    - group: "traefik.io"
+      kind: ServersTransport
+    - group: "discovery.k8s.io"
+      kind: EndpointSlice
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+    - group: "policy"
+      kind: PodDisruptionBudget
+    - group: "rbac.authorization.k8s.io"
+      kind: Role
+    - group: "rbac.authorization.k8s.io"
+      kind: RoleBinding
+    - group: "bitnami.com"
+      kind: SealedSecret
+    - group: ""
+      kind: Secret
+
+  # RBAC в межах проекту
+  roles:
+    - name: dev-deployer
+      description: "Може синхронізувати всі застосунки в dev"
+      policies:
+        - p, proj:dev-project:dev-deployer, applications, sync, dev-project/*, allow
+        - p, proj:dev-project:dev-deployer, applications, get, dev-project/*, allow
+      groups:
+        - dev-team
+
+  # Orphaned resources — репортити але не видаляти (dev: корисно для debugging)
+  orphanedResources:
+    warn: true
+    ignore:
+      - group: ""
+        kind: Secret
+        name: shared-secrets
+      - group: ""
+        kind: Secret
+        name: webplatform-secrets
+      - group: networking.k8s.io
+        kind: NetworkPolicy
+        name: cde-common-egress

@@ -1,0 +1,7 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+    zone: ZONE  # dmz або cde — замінюється при копіюванні template

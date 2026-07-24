@@ -1,0 +1,39 @@
+---
+# HelmRelease для kube-prometheus-stack
+# Використовується через ArgoCD Helm source або окремо через helm install
+#
+# Встановлення вручну:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring --create-namespace \
+#     -f infrastructure/monitoring/values.yaml
+#
+# Якщо використовуєте ArgoCD для моніторингу — розкоментуйте Application нижче
+
+# Для довідки — ArgoCD Application (опціонально)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "58.3.1"
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://OBSERVABILITY_NODE_IP:6443
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true  # потрібно для CRD kube-prometheus-stack

@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fluent-bit-egress
+  namespace: logging
+spec:
+  podSelector:
+    matchLabels:
+      app: fluent-bit
+  policyTypes: [Egress]
+  egress:
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+    # Kubernetes API — для kubernetes filter (pod metadata)
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+      ports:
+        - port: 443
+        - port: 6443
+
+    # Elasticsearch — IP задається в overlay
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.1/32  # placeholder
+      ports:
+        - port: 9200

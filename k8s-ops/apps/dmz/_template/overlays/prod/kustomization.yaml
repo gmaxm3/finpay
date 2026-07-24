@@ -1,0 +1,66 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod-dmz
+
+resources:
+  - ../../base
+
+# Prod: digest-based reference (immutable, PCI-DSS вимога)
+# Kargo замінить на актуальний digest після approval
+images:
+  - name: hub.kapowai.com.ua/SERVICE_NAME
+    # newName: та digest встановлює Kargo при promotion
+    # Формат: hub.kapowai.com.ua/SERVICE_NAME@sha256:DIGEST
+    newTag: "REPLACE_WITH_DIGEST_OR_SEMVER_TAG"
+
+patches:
+  - target:
+      kind: Deployment
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "200m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "1000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "1Gi"
+
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+
+  # PDB для prod: мінімум 50% подів доступні
+  - target:
+      kind: PodDisruptionBudget
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: "50%"
+
+configMapGenerator:
+  - name: SERVICE_NAME-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+      - LOG_LEVEL=warn
+      # prod-dmz кластер звертається до RabbitMQ в prod-cde кластері
+      # Через ExternalName Service або cross-cluster networking
+      - RABBITMQ_HOST=REPLACE_WITH_PROD_RABBITMQ_ENDPOINT

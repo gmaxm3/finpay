@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: SERVICE_NAME
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/component: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  # Кількість реплік встановлюється в overlay
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: SERVICE_NAME
+      zone: dmz
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: SERVICE_NAME
+        app.kubernetes.io/component: SERVICE_NAME
+        app.kubernetes.io/part-of: finpaybank
+        zone: dmz
+      annotations:
+        # PCI-DSS: логувати всі зміни конфігурації
+        kubectl.kubernetes.io/last-applied-configuration: ""
+    spec:
+      # PCI-DSS: окремий ServiceAccount з мінімальними правами
+      serviceAccountName: SERVICE_NAME
+      automountServiceAccountToken: false
+
+      # PCI-DSS: Pod-рівень SecurityContext
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # imagePullSecrets для обох registry
+      imagePullSecrets:
+        - name: registry-credentials
+
+      containers:
+        - name: SERVICE_NAME
+          # Image встановлюється в overlay через kustomize images
+          image: hub.kapowai.com.ua/SERVICE_NAME:latest
+
+          # PCI-DSS: Container-рівень SecurityContext
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+
+          ports:
+            - name: http
+              containerPort: SERVICE_PORT
+              protocol: TCP
+
+          # Env vars: non-secret значення з ConfigMap
+          envFrom:
+            - configMapRef:
+                name: SERVICE_NAME-config
+
+          # PCI-DSS: явні resource limits (захист від resource exhaustion)
+          resources:
+            requests:
+              cpu: "50m"       # ЗАМІНИТИ на реальні значення для сервісу
+              memory: "128Mi"  # ЗАМІНИТИ на реальні значення для сервісу
+            limits:
+              cpu: "500m"      # ЗАМІНИТИ на реальні значення для сервісу
+              memory: "512Mi"  # ЗАМІНИТИ на реальні значення для сервісу
+
+          # Probes — замінити шляхи на реальні endpoints сервісу
+#           startupProbe:
+#             httpGet:
+#               path: /health
+#               port: SERVICE_PORT
+#             failureThreshold: 30
+#             periodSeconds: 10
+#           livenessProbe:
+#             httpGet:
+#               path: /health
+#               port: SERVICE_PORT
+#             initialDelaySeconds: 30
+#             periodSeconds: 30
+#             failureThreshold: 3
+#           readinessProbe:
+#             httpGet:
+#               path: /ready
+#               port: SERVICE_PORT
+#             initialDelaySeconds: 10
+#             periodSeconds: 10
+
+          # tmp директорія для writeable файлів (readOnlyRootFilesystem: true)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      # Антиафінність — розподіл реплік по нодам
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: SERVICE_NAME
+                topologyKey: kubernetes.io/hostname

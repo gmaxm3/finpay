@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyc-liveness-worker
+  annotations:
+    reloader.stakater.com/auto: "true"
+  labels:
+    app.kubernetes.io/name: kyc-liveness-worker
+    app.kubernetes.io/component: esb
+    app.kubernetes.io/part-of: finpaybank
+    zone: cde
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kyc-liveness-worker
+      zone: cde
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kyc-liveness-worker
+        app.kubernetes.io/component: esb
+        app.kubernetes.io/part-of: finpaybank
+        zone: cde
+
+    spec:
+      serviceAccountName: kyc-liveness-worker
+      automountServiceAccountToken: false
+
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - kyc-liveness-service
+              topologyKey: kubernetes.io/hostname
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: Always
+        seccompProfile:
+          type: RuntimeDefault
+
+      imagePullSecrets:
+        - name: registry-credentials
+
+      containers:
+        - name: kyc-liveness-worker
+          image: hub.kapowai.com.ua/kyc-liveness-service:25.09.01
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+            - name: deepface-cache
+              mountPath: /.deepface
+
+            - name: config-cache
+              mountPath: /.config
+
+            - name: dot-cache
+              mountPath: /.cache
+
+            - name: shared-data
+              mountPath: /app/data
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+        - name: deepface-cache
+          emptyDir: {}
+
+        - name: config-cache
+          emptyDir: {}
+
+        - name: dot-cache
+          emptyDir: {}
+
+        - name: shared-data
+          hostPath:
+            path: /opt/kyc-liveness-data
+            type: DirectoryOrCreate

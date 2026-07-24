@@ -1,0 +1,52 @@
+---
+# ArgoCD Application для Loki stack (Loki + Promtail)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-stack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki-stack
+    targetRevision: "2.10.2"
+    helm:
+      values: |
+        loki:
+          enabled: true
+          persistence:
+            enabled: true
+            size: 50Gi
+          # PCI-DSS: логи зберігати мінімум 1 рік
+          config:
+            table_manager:
+              retention_deletes_enabled: true
+              retention_period: 8760h  # 365 днів
+
+        promtail:
+          enabled: true
+          config:
+            # Збирати логи з усіх кластерів (потрібен доступ до node logs)
+            snippets:
+              pipelineStages:
+                - docker: {}
+                - match:
+                    selector: '{namespace=~".*-cde|prod"}'
+                    stages:
+                      # PCI-DSS: маскувати PAN в логах
+                      - replace:
+                          expression: '(\d{4})[- ]?(\d{4})[- ]?(\d{4})[- ]?(\d{4})'
+                          replace: '****-****-****-$4'
+
+        grafana:
+          enabled: false  # Grafana встановлюється через kube-prometheus-stack
+  destination:
+    server: https://OBSERVABILITY_NODE_IP:6443
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

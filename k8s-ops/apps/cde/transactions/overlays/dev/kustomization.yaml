@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev-cde
+resources:
+- ../../base
+- secret-transactions.yaml
+images:
+- name: finpaybank.kapowai.com.ua/transactions
+  newName: finpaybank.kapowai.com.ua/transactions
+  newTag: 26.7.3
+configMapGenerator:
+- name: transactions-config
+  behavior: merge
+  literals:
+  - APP_ENV=dev

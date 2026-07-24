@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-cde
+resources:
+  - ../../base
+images:
+  - name: finpaybank.kapowai.com.ua/notifications
+    newTag: "26.0.0"
+configMapGenerator:
+  - name: notifications-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+
+patches:
+  - target:
+      kind: Ingress
+      name: notifications
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: online.finpay.com.ua

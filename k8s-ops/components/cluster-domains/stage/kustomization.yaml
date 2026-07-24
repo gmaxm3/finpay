@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Cluster-wide domain configuration for stage environment.
+# TLS certificate is managed via TLSStore in kube-system (infrastructure/traefik/).
+patches:
+- target:
+    kind: Ingress
+    labelSelector: "ingress-type=external"
+  patch: |
+    - op: replace
+      path: /spec/rules/0/host
+      value: online-stage.finpay.com.ua
+- target:
+    kind: IngressRoute
+    name: transactions
+  patch: |
+    - op: replace
+      path: /spec/routes/0/match
+      value: "Host(`online-stage.finpay.com.ua`) && PathRegexp(`^/api/v1/cards/[^/]+/transactions`)"
+# Future: internal API (internal-stage.finpay.com.ua:8443)
+# Future: admin panel (admin-stage.finpay.com.ua:8443)

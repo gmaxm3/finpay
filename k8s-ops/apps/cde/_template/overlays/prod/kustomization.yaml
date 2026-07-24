@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: prod-cde
+
+resources:
+  - ../../base
+
+# Prod CDE: digest-based (immutable reference, PCI-DSS)
+images:
+  - name: hub.kapowai.com.ua/SERVICE_NAME
+    newTag: "REPLACE_WITH_DIGEST_OR_SEMVER_TAG"
+
+patches:
+  - target:
+      kind: Deployment
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "2000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "2Gi"
+
+  - target:
+      kind: PodDisruptionBudget
+      name: SERVICE_NAME
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: "50%"
+
+configMapGenerator:
+  - name: SERVICE_NAME-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+      - LOG_LEVEL=warn
+      - DB_HOST=REPLACE_PROD_POSTGRES_PRIMARY_IP

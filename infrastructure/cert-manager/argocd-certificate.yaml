@@ -1,0 +1,38 @@
+---
+# TLS Certificate для ArgoCD UI
+# Використовує Let's Encrypt якщо ArgoCD виставлено назовні
+# Або internal-ca якщо доступ тільки з VPN
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-tls
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  secretName: argocd-tls
+  dnsNames:
+    - argocd.online-test.finpay.com.ua
+  issuerRef:
+    name: internal-ca
+    kind: ClusterIssuer
+  duration: 2160h
+  renewBefore: 360h
+---
+# Certificate для Kargo UI
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kargo-tls
+  namespace: kargo
+  labels:
+    app.kubernetes.io/part-of: finpaybank
+spec:
+  secretName: kargo-tls
+  dnsNames:
+    - kargo.online-test.finpay.com.ua
+  issuerRef:
+    name: internal-ca
+    kind: ClusterIssuer
+  duration: 2160h
+  renewBefore: 360h

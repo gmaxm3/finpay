@@ -1,0 +1,4 @@
+# vscode-sops: human-readable git diff for SOPS-encrypted files
+# Requires local: git config --global diff.sopsdiffer.textconv "sops -d --config /dev/null"
+k8s-ops/apps/**/secret-*.yaml diff=sopsdiffer merge=binary
+infrastructure/secrets/**/*.yaml diff=sopsdiffer merge=binary

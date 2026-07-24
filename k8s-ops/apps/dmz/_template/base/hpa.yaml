@@ -1,0 +1,30 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app.kubernetes.io/name: SERVICE_NAME
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: SERVICE_NAME
+  # min/max встановлюються в overlay відповідно до середовища
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Масштабування при 70% CPU — залишає буфер перед throttling
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

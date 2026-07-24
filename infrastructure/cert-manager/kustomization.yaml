@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# cert-manager встановлення та конфігурація
+# Застосувати: kubectl apply -k infrastructure/cert-manager/
+#
+# Порядок застосування важливий:
+#   1. cert-manager CRD та оператор (з офіційного manifest)
+#   2. Чекати готовності: kubectl rollout status deploy -n cert-manager
+#   3. Застосувати ClusterIssuers (потребують запущеного оператора)
+
+resources:
+  # Офіційний manifest cert-manager (CRD + оператор + RBAC)
+  - https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+
+  # ClusterIssuers — застосовувати після готовності оператора
+  - cluster-issuer.yaml
+  - cluster-issuer-internal.yaml
+
+  # RBAC для cainjector leader election leases у kube-system
+  - cainjector-leaderelection-rbac.yaml
+
+patches:
+  # Resource limits для cert-manager компонентів (PCI-DSS: завжди limits)
+  - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+    target:
+      kind: Deployment
+      name: cert-manager
+      namespace: cert-manager

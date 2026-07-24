@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: push-gateway
+  labels:
+    app.kubernetes.io/name: push-gateway
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: push-gateway
+      zone: dmz
+  policyTypes: [Egress]
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # RabbitMQ в CDE — читає задачі на push notifications
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: rabbitmq
+      ports:
+        - port: 5672
+    # FCM (Firebase Cloud Messaging) — Google APIs
+    # push-gateway потребує internet egress для відправки push notifications
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP

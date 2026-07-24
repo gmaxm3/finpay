@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-cde
+resources:
+  - ../../base
+  - secret-vkursi.yaml
+images:
+  - name: hub.kapowai.com.ua/vkursi-client
+    newTag: "26.02.4"
+configMapGenerator:
+  - name: vkursi-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod

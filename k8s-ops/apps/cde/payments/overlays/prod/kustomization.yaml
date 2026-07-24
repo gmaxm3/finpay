@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-cde
+resources:
+- ../../base
+images:
+- name: finpaybank.kapowai.com.ua/payments
+  newTag: 26.6.2
+configMapGenerator:
+- name: payments-config
+  behavior: merge
+  literals:
+  - APP_ENV=prod
+patches:
+- target:
+    kind: Ingress
+    name: payments
+  patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: online.finpay.com.ua

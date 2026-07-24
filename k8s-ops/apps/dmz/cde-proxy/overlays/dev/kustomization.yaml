@@ -1,0 +1,5 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# dev: single cluster — CDE Ingress is picked up by shared Traefik directly.
+# cde-proxy is not deployed in dev.
+namespace: dev-dmz

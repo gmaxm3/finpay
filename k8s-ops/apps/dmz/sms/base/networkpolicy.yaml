@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sms
+  labels:
+    app.kubernetes.io/name: sms
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: sms
+      zone: dmz
+  policyTypes: [Egress]
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # podSelector навмисно відсутній — commonLabels DMZ зони додає zone:dmz і ламає матч з CDE pods
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              security-zone: cde
+      ports:
+        - port: 5672
+        - port: 6379
+    # Internet egress (SMS / external API)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP

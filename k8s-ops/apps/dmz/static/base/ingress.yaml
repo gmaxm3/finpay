@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: static
+  labels:
+    app.kubernetes.io/name: static
+    app.kubernetes.io/part-of: finpaybank
+    zone: dmz
+    ingress-type: external
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: REPLACE_STATIC_HOST
+      http:
+        paths:
+          - path: /static/
+            pathType: Prefix
+            backend:
+              service:
+                name: static
+                port:
+                  number: 80
